@@ -1,0 +1,5 @@
+PicklingTools170Release/
+cmake-build-debug/
+.idea/
+*.txt
+*.bin
