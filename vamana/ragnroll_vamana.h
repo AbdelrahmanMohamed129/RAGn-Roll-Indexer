@@ -363,6 +363,7 @@ private:
             }
             return;
         }
+        graph[p].clear();
         while (cand_set.size() > 0) {
             if (graph[p].size() >= R)
                 break;

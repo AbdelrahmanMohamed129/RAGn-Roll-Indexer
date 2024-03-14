@@ -9,7 +9,7 @@ using namespace std;
 int main() {
     vector<pair<int,vector<float>>> pdata;
     const int dim = 768;
-    auto x = new Vamana(20, 20, 2, dim);
+    auto x = new Vamana(10, 10, 1.5, dim);
 //    for (int i = 0; i < 100; ++i) {
 //        ifstream myFile("./batches/clusters/" + to_string(i) + ".txt");
         ifstream myFile("littleids.txt");
