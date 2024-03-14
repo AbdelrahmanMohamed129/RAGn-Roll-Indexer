@@ -46,18 +46,22 @@ public:
         index_built = false;
     }
 
-    void CreateIndex(vector<vector<float>>& pdata) {
+    void CreateIndex(vector<pair<int,vector<float>>>& pdataWithIds) {
         if (index_built) {
             std::cout << "Index is already built!!!!!!!!!!!" << std::endl;
             return;
         }
-        nodes_no = pdata.size();
+        nodes_no = pdataWithIds.size();
         graph.resize(nodes_no);
         points.resize(nodes_no);
+        actualIds.resize(nodes_no);
         if (R < (size_t)std::ceil(log2(nodes_no))) {
             std::cout << "The parameter is less than log2(n), maybe result in low recall!!!!!!" << std::endl;
         }
         std::vector<std::mutex>(nodes_no).swap(link_list_locks);
+        mapPoints(pdataWithIds);
+        vector<vector<float>> pdata;
+        for(auto dataEmbed : pdataWithIds) pdata.push_back(dataEmbed.second);
         addPoints(pdata);
         randomInit();
         HealthyCheck();
@@ -72,7 +76,7 @@ public:
         auto sz = ans.size();
         while (!ans.empty()) {
             sz --;
-            ret[sz] = ans.top();
+            ret[sz] = {ans.top().first, actualIds[ans.top().second]};
             ans.pop();
         }
         return ret;
@@ -127,8 +131,7 @@ public:
             memset(block, -1, sizeof(block));
             std::string raw_data;
             for (size_t id = 0; id < num_per_block and idx < nodes_no; ++id) {
-                raw_data.append(reinterpret_cast<const char&>(points[idx]),
-                                sizeof(float) * dim);
+                raw_data.append(reinterpret_cast<const char*>(&points[idx]), sizeof(float) * dim);
                 int32_t num_neighbors = graph[idx].size();
                 raw_data.append(reinterpret_cast<char*>(&num_neighbors), sizeof(int32_t));
                 memset(neighbors, -1, sizeof(neighbors));
@@ -379,6 +382,12 @@ private:
         }
     }
 
+    void mapPoints(vector<pair<int,vector<float>>>& pdataWithId) {
+        for(int i=0;i<pdataWithId.size();i++) {
+            actualIds[i] = pdataWithId[i].first;
+        }
+    }
+
     void addPoints(vector<vector<float>>& pdata) {
         for(int i=0;i<pdata.size();i++) {
             points[i] = pdata[i];
@@ -439,6 +448,7 @@ private:
     idx_t  centroid;
     vector<vector<idx_t>> graph;
     vector<vector<float>> points;
+    vector<int> actualIds;
     bool index_built;
     size_t dim;
     size_t nodes_no;

@@ -7,12 +7,12 @@
 using namespace std;
 
 int main() {
-    vector<vector<float>> pdata;
+    vector<pair<int,vector<float>>> pdata;
     const int dim = 768;
     auto x = new Vamana(20, 20, 2, dim);
-    for (int i = 0; i < 100; ++i) {
-        ifstream myFile("./batches/clusters/" + to_string(i) + ".txt");
-//        ifstream myFile("cluster0.txt");
+//    for (int i = 0; i < 100; ++i) {
+//        ifstream myFile("./batches/clusters/" + to_string(i) + ".txt");
+        ifstream myFile("littleids.txt");
         if (myFile.is_open()) {
             while (myFile) {
                 string line;
@@ -20,55 +20,57 @@ int main() {
                 if (!line.size()) break;
                 line.erase(remove(line.begin(), line.end(), '['), line.end());
                 line.erase(remove(line.begin(), line.end(), ']'), line.end());
-                pdata.push_back(vector<float>());
                 stringstream stream_line(line);
+                string id;
+                getline(stream_line, id, ' ');
+                pdata.push_back({stoi(id),vector<float>()});
                 while (stream_line.good()) {
                     string substr;
                     getline(stream_line, substr, ' ');
                     if (!substr.length()) continue;
-                    pdata.back().push_back(stof(substr));
+                    pdata.back().second.push_back(stof(substr));
                 }
             }
         }
-    }
+//    }
 
-    // read the queries from the query.txt
-    ifstream queryFile("query.txt");
-    vector<vector<float>> queries;
-    if (queryFile.is_open()) {
-        while (queryFile) {
-            string line;
-            getline(queryFile, line);
-            if (!line.size()) break;
-            queries.push_back(vector<float>());
-            stringstream stream_line(line);
-            while (stream_line.good()) {
-                string substr;
-                getline(stream_line, substr, ' ');
-                if (!substr.length()) continue;
-                queries.back().push_back(stof(substr));
-            }
-        }
-    }
-    // calculate the ground truth of each query from the pdata and output the top 10 points where it outputs the distance then ID in a file each in a line
-    for (int l = 0; l < queries.size(); ++l) {
-        vector<pair<float, int>> groundTruth;
-        for (int j = 0; j < pdata.size(); ++j) {
-            float dist = 0;
-            for (int k = 0; k < dim; ++k) {
-                dist += (queries[l][k] - pdata[j][k]) * (queries[l][k] - pdata[l][k]);
-            }
-            groundTruth.push_back({dist, j});
-        }
-        sort(groundTruth.begin(), groundTruth.end());
-        ofstream groundTruthFile("groundtruth" + to_string(l) + ".txt");
-        for (int j = 0; j < 20; ++j) {
-            groundTruthFile << groundTruth[j].first << " " << groundTruth[j].second << endl;
-        }
-    }
+//    // read the queries from the query.txt
+//    ifstream queryFile("query.txt");
+//    vector<vector<float>> queries;
+//    if (queryFile.is_open()) {
+//        while (queryFile) {
+//            string line;
+//            getline(queryFile, line);
+//            if (!line.size()) break;
+//            queries.push_back(vector<float>());
+//            stringstream stream_line(line);
+//            while (stream_line.good()) {
+//                string substr;
+//                getline(stream_line, substr, ' ');
+//                if (!substr.length()) continue;
+//                queries.back().push_back(stof(substr));
+//            }
+//        }
+//    }
+//    // calculate the ground truth of each query from the pdata and output the top 10 points where it outputs the distance then ID in a file each in a line
+//    for (int l = 0; l < queries.size(); ++l) {
+//        vector<pair<float, int>> groundTruth;
+//        for (int j = 0; j < pdata.size(); ++j) {
+//            float dist = 0;
+//            for (int k = 0; k < dim; ++k) {
+//                dist += (queries[l][k] - pdata[j].second[k]) * (queries[l][k] - pdata[l].second[k]);
+//            }
+//            groundTruth.push_back({dist, j});
+//        }
+//        sort(groundTruth.begin(), groundTruth.end());
+//        ofstream groundTruthFile("groundtruth" + to_string(l) + ".txt");
+//        for (int j = 0; j < 20; ++j) {
+//            groundTruthFile << groundTruth[j].first << " " << groundTruth[j].second << endl;
+//        }
+//    }
 
 
-//    x->CreateIndex(pdata);
+    x->CreateIndex(pdata);
 //
 //    // Generate 3 random query of dim 768 and make it from -1 to 1
 //    vector<float> query;
