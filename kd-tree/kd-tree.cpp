@@ -33,6 +33,7 @@ public:
     }
 };
 
+int cnt = 0;
 
 void mapClusters(int batch) {
     string batchFileName = "batches/dataset/"+to_string(batch)+"-embeds-batch.txt";
@@ -55,7 +56,7 @@ void mapClusters(int batch) {
         }
     }
 
-    map<int,vector<vector<double>>> labels;
+    map<int,vector<pair<int, vector<double>>>> labels;
     string labelFileName = "batches/labels/labels"+to_string(batch)+".txt";
     ifstream labelFile(labelFileName);
     ofstream outfile;
@@ -70,7 +71,7 @@ void mapClusters(int batch) {
             while (stream_line.good()) {
                 string substr;
                 getline(stream_line, substr, ' ');
-                labels[stoi(substr)].push_back(embeds[i++]);
+                labels[stoi(substr)].push_back({cnt++, embeds[i++]});
                 if(i>=embeds.size()) {
                     break;
                 }
@@ -80,9 +81,11 @@ void mapClusters(int batch) {
 
     for(auto label : labels) {
         outfile.open("batches/clusters/"+ to_string(label.first)+".txt", ios_base::app);
+
         auto embeds = label.second;
         for(auto embed : embeds) {
-            for(auto element : embed) outfile << element << " ";
+            outfile << embed.first << " ";
+            for(auto element : embed.second) outfile << element << " ";
             outfile << endl;
         }
         outfile.close();
@@ -133,8 +136,9 @@ int main(int argc, char **argv)
 
     // build k-d tree
 //    kdt::KDTree<MyPoint> kdtree(points);
-
-    mapClusters(4);
+    for (int i = 0; i < 5; ++i) {
+        mapClusters(i);
+    }
 
     return 0;
 }
