@@ -160,7 +160,9 @@ private:
                 if (i % threads_no == curr_thread) {
                     std::set<idx_t> random_neighbors;
                     do {
-                        random_neighbors.insert((idx_t)(rand() % nodes_no));
+                        // avoiding self edges
+                        auto newNeighbor = (idx_t)(rand() % nodes_no);
+                        if(newNeighbor != i) random_neighbors.insert((idx_t)(rand() % nodes_no));
                     } while (random_neighbors.size() < R);
                     assert(random_neighbors.size() <= R);
                     for (auto &chosen : random_neighbors) {
@@ -181,15 +183,31 @@ private:
         }
         for (auto i = 0; i < dim; i ++)
             center[i] /= nodes_no;
+
+
+        /* Calculating medoid by finding least distance to average of all points */
         auto tstart = std::chrono::high_resolution_clock::now();
-        auto tpL = search(center, (idx_t)(rand() % nodes_no), L);
+        int minIdx(0), minDis(INT_MAX);
+        for(int i=0;i<pdata.size();i++) {
+            int dist(0);
+            for (int d = 0; d < dim; ++d) {
+                dist += (center[d] - pdata[i][d]) * (center[d] - pdata[i][d]);
+            }
+            if(dist < minDis) {
+                minDis = dist;
+                minIdx = i;
+            }
+        }
+        centroid = minIdx;
+
+//        auto tpL = search(center, (idx_t)(rand() % nodes_no), L);
         auto tend = std::chrono::high_resolution_clock::now();
         std::cout << "first search for medoid finished in " << std::chrono::duration_cast<std::chrono::milliseconds>(tend - tstart).count() << " ms." << std::endl;
-        while (!tpL.empty()) {
-            centroid = tpL.top().second;
-//            std::cout << "sp_ = " << sp_ << std::endl;
-            tpL.pop();
-        }
+//        while (!tpL.empty()) {
+//            centroid = tpL.top().second;
+////            std::cout << "sp_ = " << sp_ << std::endl;
+//            tpL.pop();
+//        }
         std::cout << "init sp_ = " << centroid << std::endl;
 
         // step2: do the first iteration with alpha = 1
@@ -205,7 +223,7 @@ private:
         std::cout << "the first round iteration finished in " << std::chrono::duration_cast<std::chrono::milliseconds>(tend - tstart).count() << " ms." << std::endl;
 
         // todo: need update sp_?
-        tpL = search(center, centroid, L);
+        auto tpL = search(center, centroid, L);
         while (!tpL.empty()) {
             centroid = tpL.top().second;
             tpL.pop();
@@ -274,7 +292,7 @@ private:
                 // todo: prefetch
                 if (vis[candi_id])
                     continue;
-                auto candi_data = points[cur.second];
+                auto candi_data = points[candi_id];
                 auto dist = getDistance(query_point, candi_data);
                 if (resultSet.size() < L || dist < lowerBound) {
                     expandSet.emplace(-dist, candi_id);

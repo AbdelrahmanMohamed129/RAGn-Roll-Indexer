@@ -9,19 +9,20 @@ using namespace std;
 int main() {
     vector<pair<int,vector<float>>> pdata;
     const int dim = 768;
-    int R = 12, L = 12, alpha = 1.2;
+    int R = 15, L = 20, alpha = 1.5;
     auto x = new Vamana(R, L, alpha, dim);
 
     int topK = 10;
 
     for (int i = 0; i < 1; ++i) {
-        ifstream myFile("./batches/clusters/" + to_string(i) + ".txt");
-//        ifstream myFile("littleids.txt");
+//        ifstream myFile("./batches/clusters/" + to_string(i) + ".txt");
+        ifstream myFile("cluster0.txt");
         if (myFile.is_open()) {
             while (myFile) {
                 string line;
                 getline(myFile, line);
                 if (!line.size()) break;
+                // Removing square brackets
 //                line.erase(remove(line.begin(), line.end(), '['), line.end());
 //                line.erase(remove(line.begin(), line.end(), ']'), line.end());
                 stringstream stream_line(line);
@@ -40,11 +41,13 @@ int main() {
         }
     }
 
+    /* ---------------- Creating the Index ---------------- */
     auto tstart = std::chrono::high_resolution_clock::now();
     x->CreateIndex(pdata);
     auto tend = std::chrono::high_resolution_clock::now();
     std::cout << "create index done in " << std::chrono::duration_cast<std::chrono::milliseconds>( tend - tstart ).count() << " millseconds." << std::endl;
 
+    /* ---------------- Reading the Query File ---------------- */
     // read the queries from the query.txt
     ifstream queryFile("query.txt");
     vector<vector<float>> queries;
@@ -64,6 +67,8 @@ int main() {
         }
     }
 
+    /* ---------------- Calculating the Ground-truth and Recall ---------------- */
+
     // calculate the ground truth of each query from the pdata and output the top 10 points where it outputs the distance then ID in a file each in a line
     for (int l = 0; l < queries.size(); ++l) {
         vector<pair<float, int>> groundTruth;
@@ -76,19 +81,15 @@ int main() {
         }
         sort(groundTruth.begin(), groundTruth.end());
 
-//        ofstream groundTruthFile("groundtruth" + to_string(l) + ".txt");
-//        for (int j = 0; j < topK; ++j) {
-//            groundTruthFile << groundTruth[j].first << " " << groundTruth[j].second << endl;
-//        }
-
         std::cout << "show groundtruth:" << std::endl;
         for (size_t j = 0; j < topK; j ++) {
             std::cout << "(" << groundTruth[j].second << ", " << groundTruth[j].first << ") ";
         }
         std::cout << std::endl;
 
-
+        // Searching for the query
         auto res = x->Search(queries[l], topK);
+
         std::cout << "show resultset:" << std::endl;
         for (size_t j = 0; j < topK; j ++) {
             std::cout << "(" << res[j].second << ", " << res[j].first << ") ";
@@ -109,7 +110,6 @@ int main() {
         cout << "Recall: " << (float)recall / topK << endl;
 
     }
-
 
 //    x->writeIndexToFile("./indexed/test/0.txt");
     return 0;
