@@ -9,6 +9,10 @@
 #include <mutex>
 #include "omp.h"
 
+#include <boost/archive/text_oarchive.hpp>
+#include <boost/archive/text_iarchive.hpp>
+#include <boost/serialization/vector.hpp>
+
 #define BLOCK_SIZE 3320
 #define ROUND_UP(X, Y) \
 ((((uint64_t)(X) / (Y)) + ((uint64_t)(X) % (Y) != 0)) * (Y))
@@ -147,6 +151,18 @@ public:
             fout.write(block, BLOCK_SIZE);
         }
         fout.close();
+    }
+
+    void writeIndexToFileBoost(const std::string& path) {
+        std::ofstream ofs(path, std::ios::binary);
+        boost::archive::text_oarchive oa(ofs);
+        oa << *this;
+    }
+
+    void readIndexFromFile(const std::string& path) {
+        std::ifstream ifs(path);
+        boost::archive::text_iarchive ia(ifs);
+        ia >> *this;
     }
 
 private:
@@ -456,7 +472,6 @@ private:
         std::cout << "scan_graph done, duplicate total = " << total << std::endl;
     }
 
-
 private:
     size_t L;
     size_t R;
@@ -472,6 +487,26 @@ private:
     size_t dim;
     size_t nodes_no;
     std::vector<std::mutex> link_list_locks;
+
+    friend class boost::serialization::access;
+    template<class Archive>
+    void serialize(Archive& archive, const unsigned int version)
+    {
+        archive& L;
+        archive& R;
+        archive& alpha;
+        archive& data_size;
+        archive& link_size;
+        archive& node_size;
+        archive& centroid;
+        archive& graph;
+        archive& points;
+        archive& actualIds;
+        archive& index_built;
+        archive& dim;
+        archive& nodes_no;
+    }
+
 };
 
 #endif //INDEXER_RAGNROLL_VAMANA_H

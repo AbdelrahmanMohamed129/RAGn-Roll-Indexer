@@ -9,14 +9,14 @@ using namespace std;
 int main() {
     vector<pair<int,vector<float>>> pdata;
     const int dim = 768;
-    int R = 15, L = 20, alpha = 1.5;
+    int R = 20, L = 30, alpha = 1.5;
     auto x = new Vamana(R, L, alpha, dim);
 
     int topK = 10;
 
     for (int i = 0; i < 1; ++i) {
-//        ifstream myFile("./batches/clusters/" + to_string(i) + ".txt");
-        ifstream myFile("cluster0.txt");
+        ifstream myFile("./batches/clusters/" + to_string(i) + ".txt");
+//        ifstream myFile("cluster0.txt");
         if (myFile.is_open()) {
             while (myFile) {
                 string line;
@@ -112,6 +112,7 @@ int main() {
     }
 
 //    x->writeIndexToFile("./indexed/test/0.txt");
+    x->writeIndexToFileBoost("./batches/indexed/test/0.txt");
     return 0;
 }
 
