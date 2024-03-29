@@ -9,8 +9,12 @@
 #include <mutex>
 #include "omp.h"
 
-#include <boost/archive/text_oarchive.hpp>
-#include <boost/archive/text_iarchive.hpp>
+//#include <boost/archive/text_oarchive.hpp>
+//#include <boost/archive/text_iarchive.hpp>
+
+#include<boost/archive/binary_iarchive.hpp>
+#include<boost/archive/binary_oarchive.hpp>
+
 #include <boost/serialization/vector.hpp>
 
 #define BLOCK_SIZE 3320
@@ -154,15 +158,21 @@ public:
     }
 
     void writeIndexToFileBoost(const std::string& path) {
-        std::ofstream ofs(path, std::ios::binary);
-        boost::archive::text_oarchive oa(ofs);
-        oa << *this;
+        std::ofstream ofs(path, std::fstream::binary | std::fstream::out);
+        boost::archive::binary_oarchive oa(ofs);
+        oa&* (this);
     }
 
-    void readIndexFromFile(const std::string& path) {
-        std::ifstream ifs(path);
-        boost::archive::text_iarchive ia(ifs);
-        ia >> *this;
+    void readIndexFromFileBoost(const std::string& path) {
+        std::ifstream ifs(path, std::fstream::binary | std::fstream::in);
+//        ia >> *this;
+        if (ifs.good()) {
+            boost::archive::binary_iarchive ia(ifs);
+            ia&* (this);
+        } else {
+            // throw an error or something
+            assert(false);
+        }
     }
 
 private:

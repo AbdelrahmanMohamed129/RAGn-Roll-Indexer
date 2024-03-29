@@ -4,3 +4,5 @@ cmake-build-debug/
 *.txt
 *.bin
 !CMakeLists.txt
+build/
+cmake-build-debug-mingw/

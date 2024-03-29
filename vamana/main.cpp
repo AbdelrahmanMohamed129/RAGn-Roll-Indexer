@@ -14,7 +14,7 @@ int main() {
 
     int topK = 10;
 
-    for (int i = 0; i < 1; ++i) {
+    for (int i = 0; i < 50; ++i) {
         ifstream myFile("./batches/clusters/" + to_string(i) + ".txt");
 //        ifstream myFile("cluster0.txt");
         if (myFile.is_open()) {
@@ -46,6 +46,7 @@ int main() {
     x->CreateIndex(pdata);
     auto tend = std::chrono::high_resolution_clock::now();
     std::cout << "create index done in " << std::chrono::duration_cast<std::chrono::milliseconds>( tend - tstart ).count() << " millseconds." << std::endl;
+
 
     /* ---------------- Reading the Query File ---------------- */
     // read the queries from the query.txt
@@ -112,7 +113,10 @@ int main() {
     }
 
 //    x->writeIndexToFile("./indexed/test/0.txt");
-    x->writeIndexToFileBoost("./batches/indexed/test/0.txt");
+    x->writeIndexToFileBoost("./batches/indexed/test/0.bin");
+
+    Vamana* temp = new Vamana();
+    temp->readIndexFromFileBoost("./batches/indexed/test/0.bin");
     return 0;
 }
 
