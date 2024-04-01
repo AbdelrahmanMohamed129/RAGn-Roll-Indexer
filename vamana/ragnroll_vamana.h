@@ -175,6 +175,14 @@ public:
         }
     }
 
+    vector<vector<float>> getPoints() {
+        return points;
+    }
+
+    vector<int> getActualIds() {
+        return actualIds;
+    }
+
 private:
     void randomInit() {
         srand(unsigned(time(NULL)));
@@ -481,6 +489,7 @@ private:
         }
         std::cout << "scan_graph done, duplicate total = " << total << std::endl;
     }
+
 
 private:
     size_t L;

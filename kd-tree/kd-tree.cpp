@@ -33,9 +33,16 @@ public:
     }
 };
 
+bool is_number(const std::string& s)
+{
+    return !s.empty() && std::find_if(s.begin(),
+                                      s.end(), [](unsigned char c) { return !std::isdigit(c); }) == s.end();
+}
+
 int cnt = 0;
 
 void mapClusters(int batch) {
+    cout<<batch<<endl;
     string batchFileName = "batches/dataset/"+to_string(batch)+"-embeds-batch.txt";
     ifstream batchFile(batchFileName);
 
@@ -71,11 +78,23 @@ void mapClusters(int batch) {
             while (stream_line.good()) {
                 string substr;
                 getline(stream_line, substr, ' ');
+//                if(!substr.size()) break;
+                if(!is_number(substr)) {
+                    cout<<substr<<endl;
+                    return;
+                }
+                labels[stoi(substr)].push_back({cnt, embeds[i]});
+                getline(stream_line, substr, ' ');
+                if(!is_number(substr)) {
+                    cout<<substr<<endl;
+                    return;
+                }
                 labels[stoi(substr)].push_back({cnt++, embeds[i++]});
                 if(i>=embeds.size()) {
                     break;
                 }
             }
+            cout<<i<<endl;
         }
     }
 
