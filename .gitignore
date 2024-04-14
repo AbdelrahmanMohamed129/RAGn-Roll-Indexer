@@ -6,3 +6,6 @@ cmake-build-debug/
 !CMakeLists.txt
 build/
 cmake-build-debug-mingw/
+Data/
+.cmake/
+.vscode/

@@ -12,17 +12,17 @@ SET (Boost_LIBRARIES "C:/Program Files/boost/lib/libboost_serialization-mgw13-mt
 find_package(Boost 1.55.0 COMPONENTS serialization REQUIRED)
 
 if (NOT Boost_FOUND)
-  message(FATAL_ERROR "Fatal error: Boost (version >= 1.55) required.")
+message(FATAL_ERROR "Fatal error: Boost (version >= 1.55) required.")
 else()
-    message(STATUS "Setting up BOOST")
-    message(STATUS " Includes - ${Boost_INCLUDE_DIRS}")
-    message(STATUS " Library  - ${Boost_LIBRARIES}")
+ message(STATUS "Setting up BOOST")
+ message(STATUS " Includes - ${Boost_INCLUDE_DIRS}")
+ message(STATUS " Library  - ${Boost_LIBRARIES}")
 
-    include_directories(${Boost_INCLUDE_DIRS})
-    add_executable(RAGn_Roll_Indexer D:/Boody/GP/Indexer/RAGn-Roll-Indexer/vamana/main.cpp)
+ include_directories(${Boost_INCLUDE_DIRS})
+ add_executable(RAGn_Roll_Indexer D:/Boody/GP/Indexer/RAGn-Roll-Indexer/vamana/main.cpp)
 
-    if(OpenMP_CXX_FOUND)
-        target_link_libraries(RAGn_Roll_Indexer PUBLIC ${Boost_LIBRARIES} OpenMP::OpenMP_CXX)
-    endif()
+ if(OpenMP_CXX_FOUND)
+     target_link_libraries(RAGn_Roll_Indexer PUBLIC ${Boost_LIBRARIES} OpenMP::OpenMP_CXX)
+ endif()
 
 endif()

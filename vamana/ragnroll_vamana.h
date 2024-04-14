@@ -8,6 +8,7 @@
 #include <bits/stdc++.h>
 #include <mutex>
 #include "omp.h"
+#include <numeric>
 
 //#include <boost/archive/text_oarchive.hpp>
 //#include <boost/archive/text_iarchive.hpp>
@@ -171,7 +172,7 @@ public:
             ia&* (this);
         } else {
             // throw an error or something
-            assert(false);
+            cout << "ERROR: File not found" << endl;
         }
     }
 
@@ -181,6 +182,32 @@ public:
 
     vector<int> getActualIds() {
         return actualIds;
+    }
+
+    static float getDistance(vector<float>& point1, vector<float>& point2) {
+//        float dis = 0;
+//        for(int i=0;i<768;i++) {
+//            float mid = point1[i] - point2[i];
+//            dis += mid*mid;
+//        }
+//        return dis;
+        // use cosine similarity
+//        float dot = 0.0, denom_a = 0.0, denom_b = 0.0 ;
+//        for(int i=0;i<dim;i++) {
+//            dot += point1[i] * point2[i] ;
+//            denom_a += point1[i] * point1[i] ;
+//            denom_b += point2[i] * point2[i] ;
+//        }
+//        return dot / (sqrt(denom_a) * sqrt(denom_b)) ;
+//         use inner product
+//        float dis = std::inner_product(point1.begin(), point1.end(), point2.begin(), 0.0);
+//        float dis = std::transform_reduce(point1.begin(), point1.end(), point2.begin(), 0.0, std::plus<>(), std::multiplies<>());
+        float dis = 0.F;
+        _Pragma("clang loop vectorize(enable) interleave(enable)")
+        for (size_t i = 0; i != 768; ++i) {
+            dis += point1[i] * point2[i];
+        }
+        return dis;
     }
 
 private:
@@ -447,15 +474,6 @@ private:
         }
     }
 
-    float getDistance(vector<float>& point1, vector<float>& point2) {
-        float dis = 0;
-        for(int i=0;i<dim;i++) {
-            float mid = point1[i] - point2[i];
-            dis += mid*mid;
-        }
-        return dis;
-    }
-
     bool isDuplicate(const idx_t p, vector<idx_t> adj) {
         assert(adj.size() <= R);
         for (auto i = 0; i < adj.size(); i++) {
@@ -499,11 +517,11 @@ private:
     size_t link_size;
     size_t node_size;
     idx_t  centroid;
+    size_t dim;
     vector<vector<idx_t>> graph;
     vector<vector<float>> points;
     vector<int> actualIds;
     bool index_built;
-    size_t dim;
     size_t nodes_no;
     std::vector<std::mutex> link_list_locks;
 

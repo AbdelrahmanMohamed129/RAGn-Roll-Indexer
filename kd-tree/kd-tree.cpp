@@ -43,7 +43,7 @@ int cnt = 0;
 
 void mapClusters(int batch) {
     cout<<batch<<endl;
-    string batchFileName = "batches/dataset/"+to_string(batch)+"-embeds-batch.txt";
+    string batchFileName = "D:/Boody/GP/Indexer/RAGn-Roll-Indexer/Data/dataset/"+to_string(batch)+"-embeds-batch.txt";
     ifstream batchFile(batchFileName);
 
     vector<vector<double>> embeds;
@@ -64,7 +64,7 @@ void mapClusters(int batch) {
     }
 
     map<int,vector<pair<int, vector<double>>>> labels;
-    string labelFileName = "batches/labels/labels"+to_string(batch)+".txt";
+    string labelFileName = "D:/Boody/GP/Indexer/RAGn-Roll-Indexer/Data/labels/labels"+to_string(batch)+".txt";
     ifstream labelFile(labelFileName);
     ofstream outfile;
 
@@ -99,7 +99,7 @@ void mapClusters(int batch) {
     }
 
     for(auto label : labels) {
-        outfile.open("batches/clusters/"+ to_string(label.first)+".txt", ios_base::app);
+        outfile.open("D:/Boody/GP/Indexer/RAGn-Roll-Indexer/Data/clusters/"+ to_string(label.first)+".txt", ios_base::app);
 
         auto embeds = label.second;
         for(auto embed : embeds) {
@@ -113,6 +113,88 @@ void mapClusters(int batch) {
 
 }
 
+void mapClustersFaiss() {
+
+    vector<vector<double>> embeds;
+
+    for(int batch = 0; batch < 5; batch++) {
+        string batchFileName = "D:/Boody/GP/Indexer/RAGn-Roll-Indexer/Data/dataset/" + to_string(batch) + "-embeds-batch.txt";
+        ifstream batchFile(batchFileName);
+
+        if (batchFile.is_open()) {
+            while (batchFile) {
+                string line;
+                getline(batchFile, line);
+                if (!line.size()) break;
+                embeds.push_back(vector<double>());
+                stringstream stream_line(line);
+                while (stream_line.good()) {
+                    string substr;
+                    getline(stream_line, substr, ' ');
+                    if (substr.length() < 2) continue;
+                    embeds.back().push_back(stod(substr));
+                }
+            }
+        }
+        cout << "DONE READING BATCH " << batch << "\n";
+    }
+
+    cout << "DONE READING EMBEDS\n";
+
+    map<int,vector<pair<int, vector<double>>>> labels;
+    string labelFileName = "D:/Boody/GP/Indexer/RAGn-Roll-Indexer/Data/labels/faiss_labels.txt";
+    ifstream labelFile(labelFileName);
+    ofstream outfile;
+
+    if (labelFile.is_open()) {
+        while (labelFile) {
+            int i(0);
+            string line;
+            getline (labelFile, line);
+            if(!line.size()) break;
+            stringstream stream_line(line);
+            while (stream_line.good()) {
+                string substr;
+                // In case we assign the same point to two clusters
+                getline(stream_line, substr, ' ');
+//                if(!substr.size()) break;
+                if(!is_number(substr)) {
+                    cout<<substr<<endl;
+                    return;
+                }
+                labels[stoi(substr)].push_back({cnt, embeds[i]});
+
+                getline(stream_line, substr, ' ');
+                if(!is_number(substr)) {
+                    cout<<substr<<endl;
+                    return;
+                }
+                labels[stoi(substr)].push_back({cnt++, embeds[i++]});
+
+                if(i>=embeds.size()) {
+                    break;
+                }
+            }
+            cout<<i<<endl;
+        }
+    }
+
+    cout << "DONE READING LABELS\n";
+
+    for(auto label : labels) {
+        outfile.open("D:/Boody/GP/Indexer/RAGn-Roll-Indexer/Data/clusters/"+ to_string(label.first)+".txt", ios_base::app);
+
+        auto embeds = label.second;
+        for(auto embed : embeds) {
+            outfile << embed.first << " ";
+            for(auto element : embed.second) outfile << element << " ";
+            outfile << endl;
+        }
+        outfile.close();
+    }
+
+
+}
 
 int main(int argc, char **argv)
 {
@@ -152,12 +234,14 @@ int main(int argc, char **argv)
 //        }
 //    }
 
+    bool faissLabels = 1;
 
-    // build k-d tree
-//    kdt::KDTree<MyPoint> kdtree(points);
-    for (int i = 0; i < 5; ++i) {
-        mapClusters(i);
+    if(!faissLabels) {
+        for (int i = 0; i < 5; ++i) {
+            mapClusters(i);
+        }
     }
+    else mapClustersFaiss();
 
     return 0;
 }
