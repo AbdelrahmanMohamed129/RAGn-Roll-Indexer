@@ -6,7 +6,7 @@ import time
 with open("top_k_ids.txt", "r") as f:
     pages = f.readlines()
 
-# generate urls for each page, TODO: handle unique urls
+# generate urls for each page
 urls = dict()
 for page in pages:
     actual_page = int(page)//100
@@ -25,6 +25,7 @@ responses = grequests.map(rs)
 
 top_k_data = list()
 
+# parse the response and get the top k data [text]
 for response in responses:
     content = response.text
     parsed = html.fromstring(content)
