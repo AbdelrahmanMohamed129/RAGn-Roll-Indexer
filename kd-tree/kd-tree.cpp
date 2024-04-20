@@ -118,7 +118,7 @@ void mapClustersFaiss() {
     vector<vector<double>> embeds;
 
     for(int batch = 0; batch < 5; batch++) {
-        string batchFileName = "D:/Boody/GP/Indexer/RAGn-Roll-Indexer/Data/dataset/" + to_string(batch) + "-embeds-batch.txt";
+        string batchFileName = "D:/Boody/GP/Indexer/RAGn-Roll-Indexer/Data/normalizedDataset/" + to_string(batch) + "-embeds-batch.txt";
         ifstream batchFile(batchFileName);
 
         if (batchFile.is_open()) {

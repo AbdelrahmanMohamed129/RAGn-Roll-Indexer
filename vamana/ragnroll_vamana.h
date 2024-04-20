@@ -185,13 +185,16 @@ public:
     }
 
     static float getDistance(vector<float>& point1, vector<float>& point2) {
+
+        /* Euclidean distance */
 //        float dis = 0;
-//        for(int i=0;i<768;i++) {
+//        for(int i=0;i<dim;i++) {
 //            float mid = point1[i] - point2[i];
 //            dis += mid*mid;
 //        }
 //        return dis;
-        // use cosine similarity
+
+        /* Cosine similarity */
 //        float dot = 0.0, denom_a = 0.0, denom_b = 0.0 ;
 //        for(int i=0;i<dim;i++) {
 //            dot += point1[i] * point2[i] ;
@@ -199,14 +202,19 @@ public:
 //            denom_b += point2[i] * point2[i] ;
 //        }
 //        return dot / (sqrt(denom_a) * sqrt(denom_b)) ;
-//         use inner product
+
+          /* Versions of inner product */
 //        float dis = std::inner_product(point1.begin(), point1.end(), point2.begin(), 0.0);
 //        float dis = std::transform_reduce(point1.begin(), point1.end(), point2.begin(), 0.0, std::plus<>(), std::multiplies<>());
+
+        /* Optimized version of inner product */
         float dis = 0.F;
         _Pragma("clang loop vectorize(enable) interleave(enable)")
         for (size_t i = 0; i != 768; ++i) {
             dis += point1[i] * point2[i];
         }
+        dis = -dis;
+
         return dis;
     }
 

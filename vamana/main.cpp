@@ -81,7 +81,7 @@ int main() {
     int nprobes = 10;
 
     /* ---------------- Building the Index ---------------- */
-    buildIndexForAllData();
+//    buildIndexForAllData();
 
     /* ---------------- Reading the Centroids ---------------- */
     auto centroids = loadCentroids();
@@ -103,6 +103,17 @@ int main() {
                 if (!substr.length()) continue;
                 queries.back().push_back(stof(substr));
             }
+        }
+    }
+    // normalize the query vectors
+    for (int i = 0; i < queries.size(); ++i) {
+        float sum = 0;
+        for (int j = 0; j < queries[i].size(); ++j) {
+            sum += queries[i][j] * queries[i][j];
+        }
+        sum = sqrt(sum);
+        for (int j = 0; j < queries[i].size(); ++j) {
+            queries[i][j] /= sum;
         }
     }
 
