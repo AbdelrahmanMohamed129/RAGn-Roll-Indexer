@@ -186,18 +186,31 @@ int main(int argc, char** argv) {
     auto start = std::chrono::high_resolution_clock::now();
     int R = 20; int L = 30; float alpha = 1.5; int topK = 10; bool buildIndex = false;
 
-    // Read R, L, alpha, topK from the argv
-    if (argc > 3) {
+    // Read top K and headerFile only if we're retrieving for a query
+    if (argc == 5) {
+        topK = stoi(argv[1]);
+        cout<<"topK: "<<topK<<endl;
+        headerPath = argv[2];
+        cout<<"headerPath: "<<headerPath<<endl;
+    }
+    // Read R, L, alpha, topK from the argv if we're building the index
+    else if (argc > 3) {
         R = stoi(argv[1]);
+        cout<<"R: "<<R<<endl;
         L = stoi(argv[2]);
+        cout<<"L: "<<L<<endl;
         alpha = stof(argv[3]);
+        cout<<"alpha: "<<alpha<<endl;
         topK = stoi(argv[4]);
+        cout<<"topK: "<<topK<<endl;
         buildIndex = stoi(argv[5]);
+        cout<<"buildIndex: "<<buildIndex<<endl;
         headerPath = argv[6];
+        cout<<"headerPath: "<<headerPath<<endl;
     }
 
     /* ---------------- Building the Index ---------------- */
-    if(buildIndex) buildIndexForAllData(R, L, alpha);
+//    if(buildIndex) buildIndexForAllData(R, L, alpha);
 
     /* ---------------- Reading the Centroids ---------------- */
     auto centroids = loadCentroids();
