@@ -20,18 +20,20 @@ bool is_number(const std::string& s)
 
 void mapClustersFaiss() {
 
-    vector<vector<double>> embeds;
+    vector<pair<int,vector<double>>> embeds;
     int cnt = 0;
 
     // Counting the number of files in the directory
     int batches(0);
-    std::filesystem::path p1 { headerPath + "Data/normalizedDataset/" };
+    std::filesystem::path p1 { headerPath + "Data/Data_0/normalizedDataset/" };
     for (auto& p : std::filesystem::directory_iterator(p1)) ++batches;
 
     cout<<"Number of Batches: "<<batches<<endl;
 
+    int logger = 0;
+
     for(int batch = 0; batch < batches; batch++) {
-        string batchFileName = headerPath + "Data/normalizedDataset/" + to_string(batch) + "-embeds-batch.txt";
+        string batchFileName = headerPath + "Data/Data_0/normalizedDataset/" + to_string(batch) + "-embeds-batch.txt";
         ifstream batchFile(batchFileName);
 
         if (batchFile.is_open()) {
@@ -39,13 +41,20 @@ void mapClustersFaiss() {
                 string line;
                 getline(batchFile, line);
                 if (!line.size()) break;
-                embeds.push_back(vector<double>());
                 stringstream stream_line(line);
+                string id;
+                getline(stream_line, id, ' ');
+                if(!id.length()) continue;
+                embeds.push_back({stoi(id),vector<double>()});
                 while (stream_line.good()) {
                     string substr;
                     getline(stream_line, substr, ' ');
                     if (substr.length() < 2) continue;
-                    embeds.back().push_back(stod(substr));
+                    embeds.back().second.push_back(stod(substr));
+                }
+                if(embeds.size() > logger) {
+                    logger += 100000;
+                    cout<<"Another 100000"<<endl;
                 }
             }
         }
@@ -55,7 +64,7 @@ void mapClustersFaiss() {
     cout << "DONE READING EMBEDS\n";
 
     map<int,vector<pair<int, vector<double>>>> labels;
-    string labelFileName = headerPath + "Data/labels/faiss_labels.txt";
+    string labelFileName = headerPath + "Data/Data_0/labels/faiss_labels.txt";
     ifstream labelFile(labelFileName);
     ofstream outfile;
 
@@ -75,15 +84,14 @@ void mapClustersFaiss() {
                     cout<<substr<<endl;
                     return;
                 }
-                labels[stoi(substr)].push_back({cnt, embeds[i]});
+                labels[stoi(substr)].push_back({embeds[i].first, embeds[i].second});
 
                 getline(stream_line, substr, ' ');
                 if(!is_number(substr)) {
                     cout<<substr<<endl;
                     return;
                 }
-                labels[stoi(substr)].push_back({cnt++, embeds[i++]});
-
+                labels[stoi(substr)].push_back({embeds[i].first, embeds[i++].second});
                 if(i>=embeds.size()) {
                     break;
                 }
@@ -94,7 +102,7 @@ void mapClustersFaiss() {
     cout << "DONE READING LABELS\n";
 
     for(auto label : labels) {
-        outfile.open(headerPath + "Data/clusters/"+ to_string(label.first)+".txt", ios_base::app);
+        outfile.open(headerPath + "Data/Data_0/clusters/"+ to_string(label.first)+".txt", ios_base::app);
 
         auto embeds = label.second;
         for(auto embed : embeds) {
@@ -114,14 +122,15 @@ void mapClustersFaiss() {
 
 
 // ################################## Building the Index for All Clusters ##################################
-void buildIndexForAllData(int R, int L, float alpha) {
-
-    mapClustersFaiss();
+void buildIndexForAllData(int R, int L, double alpha) {
+//    mapClustersFaiss();
 
     for (int i = 0; i < numOfClusters; ++i) {
         auto x = new Vamana(R, L, alpha, dim);
         vector<pair<int,vector<float>>> pdata;
-        ifstream myFile(headerPath + "Data/clusters/" + to_string(i) + ".txt");
+        ifstream myFile(headerPath + "Data/Data_0/clusters/" + to_string(i) + ".txt");
+//        ifstream myFile("D:/Boody/GP/DataTrying/Data/clusters/0.txt");
+
 //        ifstream myFile("cluster0.txt");
         if (myFile.is_open()) {
             while (myFile) {
@@ -155,20 +164,21 @@ void buildIndexForAllData(int R, int L, float alpha) {
         auto tend = std::chrono::high_resolution_clock::now();
         std::cout << "create index done in " << std::chrono::duration_cast<std::chrono::milliseconds>( tend - tstart ).count() << " millseconds." << std::endl;
 
-        x->writeIndexToFileBoost(headerPath + "Data/indexed/test/" + to_string(i) + ".bin");
+        x->writeIndexToFileBoost(headerPath + "Data/Data_0/indexed/test/" + to_string(i) + ".bin");
+//        x->writeIndexToFileBoost("D:/Boody/GP/DataTrying/Data/indexed/0.txt");
     }
 }
 
-vector<vector<float>> loadCentroids() {
-    vector<vector<float>> centroids;
-    ifstream myFile(headerPath + "Data/centroids/final-centroids.txt");
+vector<vector<double>> loadCentroids() {
+    vector<vector<double>> centroids;
+    ifstream myFile(headerPath + "Data/Data_0/centroids/final-centroids.txt");
     if (myFile.is_open()) {
         while (myFile) {
             string line;
             getline(myFile, line);
             if (!line.size()) break;
             stringstream stream_line(line);
-            centroids.push_back(vector<float>());
+            centroids.push_back(vector<double>());
             while (stream_line.good()) {
                 string substr;
                 getline(stream_line, substr, ' ');
@@ -184,7 +194,7 @@ vector<vector<float>> loadCentroids() {
 int main(int argc, char** argv) {
     // calculate time of execution
     auto start = std::chrono::high_resolution_clock::now();
-    int R = 20; int L = 30; float alpha = 1.5; int topK = 10; bool buildIndex = false;
+    int R = 20; int L = 30; double alpha = 1; int topK = 10; bool buildIndex = false;
 
     // Read top K and headerFile only if we're retrieving for a query
     if (argc == 5) {
@@ -193,7 +203,7 @@ int main(int argc, char** argv) {
         headerPath = argv[2];
         cout<<"headerPath: "<<headerPath<<endl;
     }
-    // Read R, L, alpha, topK from the argv if we're building the index
+        // Read R, L, alpha, topK from the argv if we're building the index
     else if (argc > 3) {
         R = stoi(argv[1]);
         cout<<"R: "<<R<<endl;
@@ -210,7 +220,7 @@ int main(int argc, char** argv) {
     }
 
     /* ---------------- Building the Index ---------------- */
-//    if(buildIndex) buildIndexForAllData(R, L, alpha);
+    if(buildIndex) buildIndexForAllData(R, L, alpha);
 
     /* ---------------- Reading the Centroids ---------------- */
     auto centroids = loadCentroids();
@@ -236,7 +246,7 @@ int main(int argc, char** argv) {
     }
     // normalize the query vectors
     for (int i = 0; i < queries.size(); ++i) {
-        float sum = 0;
+        double sum = 0;
         for (int j = 0; j < queries[i].size(); ++j) {
             sum += queries[i][j] * queries[i][j];
         }
@@ -250,7 +260,7 @@ int main(int argc, char** argv) {
     vector<vector<int>> nearestClusters;
     for (int i = 0; i < queries.size(); ++i) {
         // read the file query_faiss_labels and get the nearest clusters
-        ifstream queryFaissFile(headerPath + "Data/labels/query_faiss_labels.txt");
+        ifstream queryFaissFile(headerPath + "Data/Data_0/labels/query_faiss_labels.txt");
         vector<int> faissLabels;
         if (queryFaissFile.is_open()) {
             while (queryFaissFile) {
@@ -273,29 +283,30 @@ int main(int argc, char** argv) {
     for (int l = 0; l < queries.size(); ++l) {
 
         /* ---------------- Calculating the Ground-truth ---------------- */
-//        set<pair<float, int>> groundTruth;
-//        for(int i = 0; i < numOfClusters; i++) {
-//            if(!std::filesystem::exists(headerPath + "Data/indexed/test/" + to_string(i) + ".bin")) continue;
-//            Vamana* loadedIndex = new Vamana();
-//            loadedIndex->readIndexFromFileBoost(headerPath + "Data/indexed/test/" + to_string(i) + ".bin");
-//
-//            auto pdata = loadedIndex->getPoints();
-//            auto ids = loadedIndex->getActualIds();
-//
-//            for (int j = 0; j < pdata.size(); ++j) {
-//                float dist = 0;
-//                dist = Vamana::getDistance(queries[l], pdata[j]);
-//                groundTruth.insert({dist, ids[j]});
-//            }
-//        }
-        vector<pair<float, uint32_t>> res;
-        map<uint32_t,bool> vis;
-        for(int probe = 0; probe < nearestClusters[l].size(); probe++) {
-            if(!std::filesystem::exists(headerPath + "Data/indexed/test/" + to_string(nearestClusters[l][probe]) + ".bin")) continue;
+        set<pair<double, int>> groundTruth;
+        for(int i = 0; i < numOfClusters; i++) {
+            if(!std::filesystem::exists(headerPath + "Data/Data_0/indexed/test/" + to_string(i) + ".bin")) continue;
             Vamana* loadedIndex = new Vamana();
-            loadedIndex->readIndexFromFileBoost(headerPath + "Data/indexed/test/" + to_string(nearestClusters[l][probe]) + ".bin");
+            loadedIndex->readIndexFromFileBoost(headerPath + "Data/Data_0/indexed/test/" + to_string(i) + ".bin");
 
             auto pdata = loadedIndex->getPoints();
+            auto ids = loadedIndex->getActualIds();
+
+            for (int j = 0; j < pdata.size(); ++j) {
+                double dist = 0;
+                dist = Vamana::getDistance(queries[l], pdata[j]);
+                groundTruth.insert({dist, ids[j]});
+            }
+        }
+        vector<pair<double, uint32_t>> res;
+        vector<pair<double,uint32_t>> tempRes;
+        map<uint32_t,bool> vis;
+        for(int probe = 0; probe < nearestClusters[l].size(); probe++) {
+            if(!std::filesystem::exists(headerPath + "Data/Data_0/indexed/test/" + to_string(nearestClusters[l][probe]) + ".bin")) continue;
+            Vamana* loadedIndex = new Vamana();
+            loadedIndex->readIndexFromFileBoost(headerPath + "Data/Data_0/indexed/test/" + to_string(nearestClusters[l][probe]) + ".bin");
+
+            vector<vector<float>> pdata = loadedIndex->getPoints();
 
             // Searching for the query
             vector<pair<float,uint32_t>> tempRes = loadedIndex->Search(queries[l], topK);
@@ -304,6 +315,7 @@ int main(int argc, char** argv) {
                 vis[tempRes[j].second] = true;
                 res.push_back({tempRes[j].first, tempRes[j].second});
             }
+            tempRes.clear();
         }
         sort(res.begin(), res.end());
 
@@ -312,13 +324,13 @@ int main(int argc, char** argv) {
         // calculate the ground truth of each query from the pdata and output the top 10 points where it outputs the distance then ID in a file each in a line
         int remK(topK);
 
-//        std::cout << "show groundtruth:" << std::endl;
-//        for (auto j : groundTruth) {
-//            if (remK == 0) break;
-//            remK--;
-//            std::cout << "(" << j.second << ", " << j.first << ") ";
-//        }
-//        std::cout << std::endl;
+        std::cout << "show groundtruth:" << std::endl;
+        for (auto j : groundTruth) {
+            if (remK == 0) break;
+            remK--;
+            std::cout << "(" << j.second << ", " << j.first << ") ";
+        }
+        std::cout << std::endl;
 
 
         std::cout << "show resultset:" << std::endl;
@@ -331,23 +343,23 @@ int main(int argc, char** argv) {
         std::cout << std::endl;
 
 
-//        // calculate the recall of the result set
-//        int recall = 0;
-//        remK = topK;
-//        for (auto i : groundTruth) {
-//            if (remK == 0) break;
-//            remK--;
-//            int remKRes(topK);
-//            for (auto j : res) {
-//                if (remKRes == 0) break;
-//                remKRes--;
-//                if (i.second == j.second) {
-//                    recall++;
-//                    break;
-//                }
-//            }
-//        }
-//        cout << "Recall: " << (float)recall / topK << endl;
+        // calculate the recall of the result set
+        int recall = 0;
+        remK = topK;
+        for (auto i : groundTruth) {
+            if (remK == 0) break;
+            remK--;
+            int remKRes(topK);
+            for (auto j : res) {
+                if (remKRes == 0) break;
+                remKRes--;
+                if (i.second == j.second) {
+                    recall++;
+                    break;
+                }
+            }
+        }
+        cout << "Recall: " << (double)recall / topK << endl;
         auto end = std::chrono::high_resolution_clock::now();
         std::cout << "Retrieval done in " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " millseconds." << std::endl;
     }
@@ -358,9 +370,9 @@ int main(int argc, char** argv) {
 /* ---------------- Getting Nearest nprobes Clusters by calculating our distances ---------------- */
 //    vector<vector<int>> nearestClusters;
 //    for (int i = 0; i < queries.size(); ++i) {
-//        vector<pair<float, int>> dists;
+//        vector<pair<double, int>> dists;
 //        for (int j = 0; j < centroids.size(); ++j) {
-//            float dist = 0;
+//            double dist = 0;
 ////            for (int k = 0; k < dim; ++k) {
 ////                dist += (queries[i][k] - centroids[j][k]) * (queries[i][k] - centroids[j][k]);
 ////            }

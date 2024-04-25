@@ -203,7 +203,7 @@ public:
 //        }
 //        return dot / (sqrt(denom_a) * sqrt(denom_b)) ;
 
-          /* Versions of inner product */
+        /* Versions of inner product */
 //        float dis = std::inner_product(point1.begin(), point1.end(), point2.begin(), 0.0);
 //        float dis = std::transform_reduce(point1.begin(), point1.end(), point2.begin(), 0.0, std::plus<>(), std::multiplies<>());
 
