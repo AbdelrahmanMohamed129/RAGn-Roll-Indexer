@@ -8,6 +8,7 @@ using namespace std;
 
 int numOfClusters = 100;
 const int dim = 768;
+int file_no = 10;
 string headerPath = "D:/Boody/GP/Indexer/RAGn-Roll-Indexer/";
 
 
@@ -25,7 +26,7 @@ void mapClustersFaiss() {
 
     // Counting the number of files in the directory
     int batches(0);
-    std::filesystem::path p1 { headerPath + "Data/Data_0/normalizedDataset/" };
+    std::filesystem::path p1 { headerPath + "Data/Data_"+ std::to_string(file_no) +"/normalizedDataset/" };
     for (auto& p : std::filesystem::directory_iterator(p1)) ++batches;
 
     cout<<"Number of Batches: "<<batches<<endl;
@@ -33,7 +34,7 @@ void mapClustersFaiss() {
     int logger = 0;
 
     for(int batch = 0; batch < batches; batch++) {
-        string batchFileName = headerPath + "Data/Data_0/normalizedDataset/" + to_string(batch) + "-embeds-batch.txt";
+        string batchFileName = headerPath + "Data/Data_"+ std::to_string(file_no) +"/normalizedDataset/" + to_string(batch) + "-embeds-batch.txt";
         ifstream batchFile(batchFileName);
 
         if (batchFile.is_open()) {
@@ -64,7 +65,7 @@ void mapClustersFaiss() {
     cout << "DONE READING EMBEDS\n";
 
     map<int,vector<pair<int, vector<double>>>> labels;
-    string labelFileName = headerPath + "Data/Data_0/labels/faiss_labels.txt";
+    string labelFileName = headerPath + "Data/Data_"+ std::to_string(file_no) +"/labels/faiss_labels.txt";
     ifstream labelFile(labelFileName);
     ofstream outfile;
 
@@ -102,7 +103,7 @@ void mapClustersFaiss() {
     cout << "DONE READING LABELS\n";
 
     for(auto label : labels) {
-        outfile.open(headerPath + "Data/Data_0/clusters/"+ to_string(label.first)+".txt", ios_base::app);
+        outfile.open(headerPath + "Data/Data_"+ std::to_string(file_no) +"/clusters/"+ to_string(label.first)+".txt", ios_base::app);
 
         auto embeds = label.second;
         for(auto embed : embeds) {
@@ -123,12 +124,12 @@ void mapClustersFaiss() {
 
 // ################################## Building the Index for All Clusters ##################################
 void buildIndexForAllData(int R, int L, double alpha) {
-//    mapClustersFaiss();
+    mapClustersFaiss();
 
     for (int i = 0; i < numOfClusters; ++i) {
         auto x = new Vamana(R, L, alpha, dim);
         vector<pair<int,vector<float>>> pdata;
-        ifstream myFile(headerPath + "Data/Data_0/clusters/" + to_string(i) + ".txt");
+        ifstream myFile(headerPath + "Data/Data_"+ std::to_string(file_no) +"/clusters/" + to_string(i) + ".txt");
 //        ifstream myFile("D:/Boody/GP/DataTrying/Data/clusters/0.txt");
 
 //        ifstream myFile("cluster0.txt");
@@ -164,14 +165,14 @@ void buildIndexForAllData(int R, int L, double alpha) {
         auto tend = std::chrono::high_resolution_clock::now();
         std::cout << "create index done in " << std::chrono::duration_cast<std::chrono::milliseconds>( tend - tstart ).count() << " millseconds." << std::endl;
 
-        x->writeIndexToFileBoost(headerPath + "Data/Data_0/indexed/test/" + to_string(i) + ".bin");
+        x->writeIndexToFileBoost(headerPath + "Data/Data_"+ std::to_string(file_no) +"/indexed/test/" + to_string(i) + ".bin");
 //        x->writeIndexToFileBoost("D:/Boody/GP/DataTrying/Data/indexed/0.txt");
     }
 }
 
 vector<vector<double>> loadCentroids() {
     vector<vector<double>> centroids;
-    ifstream myFile(headerPath + "Data/Data_0/centroids/final-centroids.txt");
+    ifstream myFile(headerPath + "Data/Data_"+ std::to_string(file_no) +"/centroids/final-centroids.txt");
     if (myFile.is_open()) {
         while (myFile) {
             string line;
@@ -197,11 +198,13 @@ int main(int argc, char** argv) {
     int R = 20; int L = 30; double alpha = 1; int topK = 10; bool buildIndex = false;
 
     // Read top K and headerFile only if we're retrieving for a query
-    if (argc == 5) {
+    if (argc == 6) {
         topK = stoi(argv[1]);
         cout<<"topK: "<<topK<<endl;
         headerPath = argv[2];
         cout<<"headerPath: "<<headerPath<<endl;
+        file_no = stoi(argv[3]);
+        cout<<"file_no: "<<file_no<<endl;
     }
         // Read R, L, alpha, topK from the argv if we're building the index
     else if (argc > 3) {
@@ -217,6 +220,8 @@ int main(int argc, char** argv) {
         cout<<"buildIndex: "<<buildIndex<<endl;
         headerPath = argv[6];
         cout<<"headerPath: "<<headerPath<<endl;
+        file_no = stoi(argv[7]);
+        cout<<"file_no: "<<file_no<<endl;
     }
 
     /* ---------------- Building the Index ---------------- */
@@ -260,7 +265,7 @@ int main(int argc, char** argv) {
     vector<vector<int>> nearestClusters;
     for (int i = 0; i < queries.size(); ++i) {
         // read the file query_faiss_labels and get the nearest clusters
-        ifstream queryFaissFile(headerPath + "Data/Data_0/labels/query_faiss_labels.txt");
+        ifstream queryFaissFile(headerPath + "Data/Data_"+ std::to_string(file_no) +"/labels/query_faiss_labels.txt");
         vector<int> faissLabels;
         if (queryFaissFile.is_open()) {
             while (queryFaissFile) {
@@ -285,9 +290,9 @@ int main(int argc, char** argv) {
         /* ---------------- Calculating the Ground-truth ---------------- */
         set<pair<double, int>> groundTruth;
         for(int i = 0; i < numOfClusters; i++) {
-            if(!std::filesystem::exists(headerPath + "Data/Data_0/indexed/test/" + to_string(i) + ".bin")) continue;
+            if(!std::filesystem::exists(headerPath + "Data/Data_"+ std::to_string(file_no) +"/indexed/test/" + to_string(i) + ".bin")) continue;
             Vamana* loadedIndex = new Vamana();
-            loadedIndex->readIndexFromFileBoost(headerPath + "Data/Data_0/indexed/test/" + to_string(i) + ".bin");
+            loadedIndex->readIndexFromFileBoost(headerPath + "Data/Data_"+ std::to_string(file_no) +"/indexed/test/" + to_string(i) + ".bin");
 
             auto pdata = loadedIndex->getPoints();
             auto ids = loadedIndex->getActualIds();
@@ -298,24 +303,23 @@ int main(int argc, char** argv) {
                 groundTruth.insert({dist, ids[j]});
             }
         }
-        vector<pair<double, uint32_t>> res;
-        vector<pair<double,uint32_t>> tempRes;
+        vector<pair<float, uint32_t>> res;
         map<uint32_t,bool> vis;
         for(int probe = 0; probe < nearestClusters[l].size(); probe++) {
-            if(!std::filesystem::exists(headerPath + "Data/Data_0/indexed/test/" + to_string(nearestClusters[l][probe]) + ".bin")) continue;
+            if(!std::filesystem::exists(headerPath + "Data/Data_"+ std::to_string(file_no) +"/indexed/test/" + to_string(nearestClusters[l][probe]) + ".bin")) continue;
             Vamana* loadedIndex = new Vamana();
-            loadedIndex->readIndexFromFileBoost(headerPath + "Data/Data_0/indexed/test/" + to_string(nearestClusters[l][probe]) + ".bin");
+            loadedIndex->readIndexFromFileBoost(headerPath + "Data/Data_"+ std::to_string(file_no) +"/indexed/test/" + to_string(nearestClusters[l][probe]) + ".bin");
 
             vector<vector<float>> pdata = loadedIndex->getPoints();
+            loadedIndex->Search(queries[l], topK, res, vis);
 
             // Searching for the query
-            vector<pair<float,uint32_t>> tempRes = loadedIndex->Search(queries[l], topK);
-            for (int j = 0; j < topK; ++j) {
-                if(vis[tempRes[j].second]) continue;
-                vis[tempRes[j].second] = true;
-                res.push_back({tempRes[j].first, tempRes[j].second});
-            }
-            tempRes.clear();
+//            vector<pair<float,uint32_t>> tempRes = loadedIndex->Search(queries[l], topK);
+//            for (int j = 0; j < topK; ++j) {
+//                if(vis[tempRes[j].second]) continue;
+//                vis[tempRes[j].second] = true;
+//                res.push_back({tempRes[j].first, tempRes[j].second});
+//            }
         }
         sort(res.begin(), res.end());
 
