@@ -78,17 +78,22 @@ public:
         index_built = true;
     }
 
-    vector<pair<float, idx_t>>
-    Search(vector<float>& query, const size_t topk) {
-        std::vector<std::pair<float, idx_t>> ret(topk);
+//    vector<pair<float, idx_t>>
+    void Search(vector<float>& query, const size_t topk, vector<pair<float, uint32_t>>& res, map<uint32_t,bool>& vis) {
+        vector<pair<float, idx_t>> ret;
         auto ans = search(query, centroid, topk);
         auto sz = ans.size();
         while (!ans.empty()) {
             sz --;
-            ret[sz] = {ans.top().first, actualIds[ans.top().second]};
+            ret.push_back({ans.top().first, actualIds[ans.top().second]});
             ans.pop();
         }
-        return ret;
+        sort(ret.begin(), ret.end());
+        for (int j = 0; j < topk; ++j) {
+            if(vis[ret[j].second]) continue;
+            vis[ret[j].second] = true;
+            res.push_back({ret[j].first, ret[j].second});
+        }
     }
 
     void HealthyCheck() {
@@ -203,7 +208,7 @@ public:
 //        }
 //        return dot / (sqrt(denom_a) * sqrt(denom_b)) ;
 
-          /* Versions of inner product */
+        /* Versions of inner product */
 //        float dis = std::inner_product(point1.begin(), point1.end(), point2.begin(), 0.0);
 //        float dis = std::transform_reduce(point1.begin(), point1.end(), point2.begin(), 0.0, std::plus<>(), std::multiplies<>());
 
