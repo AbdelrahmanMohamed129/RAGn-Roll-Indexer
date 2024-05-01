@@ -10,3 +10,4 @@ Data/
 .cmake/
 .vscode/
 *.parquet
+__pycache__
