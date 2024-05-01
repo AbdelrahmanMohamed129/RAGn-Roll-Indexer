@@ -135,8 +135,8 @@ class BuildIndex:
 file_no = 39
 indexer = BuildIndex()
 
-# indexer.makeDirectories(file_no)
-# indexer.copyFiles(file_no, file_no * 4, 4)
+indexer.makeDirectories(file_no)
+indexer.copyFiles(file_no, file_no * 4, 4)
 indexer.readDataset(file_no)
 indexer.writeNormalizedDataset(file_no)
 indexer.FAISSClustering(file_no)

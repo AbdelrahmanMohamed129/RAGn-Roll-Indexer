@@ -1,6 +1,5 @@
 from transformers import DPRQuestionEncoder, DPRQuestionEncoderTokenizer
 import torch
-import numpy 
 
 # tokenizer = DPRQuestionEncoderTokenizer.from_pretrained("facebook/dpr-question_encoder-single-nq-base")
 # model = DPRQuestionEncoder.from_pretrained("facebook/dpr-question_encoder-single-nq-base")
