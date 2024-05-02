@@ -4,12 +4,16 @@
 #include <bits/stdc++.h>
 #include "ragnroll_vamana.h"
 
+#include "D:/Boody/GP/hps-master/src/hps.h"
+
 using namespace std;
 
 int numOfClusters = 100;
 const int dim = 768;
 int file_no = 10;
-string headerPath = "D:/Boody/GP/Indexer/RAGn-Roll-Indexer/";
+int total_files = 40;
+string headerPath = "Z:/";
+// string headerPath = "D:/Boody/GP/Indexer/RAGn-Roll-Indexer/";
 
 
 // ################################## Creating the Clusters ##################################
@@ -227,8 +231,6 @@ int main(int argc, char** argv) {
     /* ---------------- Building the Index ---------------- */
     if(buildIndex) buildIndexForAllData(R, L, alpha);
 
-    /* ---------------- Reading the Centroids ---------------- */
-    auto centroids = loadCentroids();
 
     /* ---------------- Reading the Query File ---------------- */
     // read the queries from the query.txt
@@ -261,6 +263,7 @@ int main(int argc, char** argv) {
         }
     }
 
+
     /* ---------------- Getting Nearest nprobes Clusters from FAISS ---------------- */
     vector<vector<int>> nearestClusters;
     for (int i = 0; i < queries.size(); ++i) {
@@ -284,43 +287,56 @@ int main(int argc, char** argv) {
         nearestClusters.push_back(faissLabels);
     }
 
-    /* ---------------- Loading the Index ---------------- */
+
+/* ---------------- Loading the Index ---------------- */
     for (int l = 0; l < queries.size(); ++l) {
 
         /* ---------------- Calculating the Ground-truth ---------------- */
-//        set<pair<double, int>> groundTruth;
-//        for(int i = 0; i < numOfClusters; i++) {
-//            if(!std::filesystem::exists(headerPath + "Data/Data_"+ std::to_string(file_no) +"/indexed/test/" + to_string(i) + ".bin")) continue;
-//            Vamana* loadedIndex = new Vamana();
-//            loadedIndex->readIndexFromFileBoost(headerPath + "Data/Data_"+ std::to_string(file_no) +"/indexed/test/" + to_string(i) + ".bin");
+//    set<pair<double, int>> groundTruth;
+//    for(int i = 0; i < numOfClusters; i++) {
+//        if(!std::filesystem::exists(headerPath + "Data/Data_"+ std::to_string(file_no) +"/indexed/test/" + to_string(i) + ".bin")) continue;
+//        Vamana* loadedIndex = new Vamana();
+//        loadedIndex->readIndexFromFileBoost(headerPath + "Data/Data_"+ std::to_string(file_no) +"/indexed/test/" + to_string(i) + ".bin");
 //
-//            auto pdata = loadedIndex->getPoints();
-//            auto ids = loadedIndex->getActualIds();
+//        auto pdata = loadedIndex->getPoints();
+//        auto ids = loadedIndex->getActualIds();
 //
-//            for (int j = 0; j < pdata.size(); ++j) {
-//                double dist = 0;
-//                dist = Vamana::getDistance(queries[l], pdata[j]);
-//                groundTruth.insert({dist, ids[j]});
-//            }
+//        for (int j = 0; j < pdata.size(); ++j) {
+//            double dist = 0;
+//            dist = Vamana::getDistance(queries[l], pdata[j]);
+//            groundTruth.insert({dist, ids[j]});
 //        }
-        vector<pair<float, uint32_t>> res;
-        map<uint32_t,bool> vis;
-        for(int probe = 0; probe < nearestClusters[l].size(); probe++) {
-            if(!std::filesystem::exists(headerPath + "Data/Data_"+ std::to_string(file_no) +"/indexed/test/" + to_string(nearestClusters[l][probe]) + ".bin")) continue;
-            Vamana* loadedIndex = new Vamana();
-            loadedIndex->readIndexFromFileBoost(headerPath + "Data/Data_"+ std::to_string(file_no) +"/indexed/test/" + to_string(nearestClusters[l][probe]) + ".bin");
+//    }
 
+        vector<pair<float, uint32_t>> res;
+        map<uint32_t, bool> vis;
+
+//            for (int probe = 0; probe < nearestClusters[l].size(); probe++) {
+#pragma omp parallel for
+        for (int probe = 0; probe < 2; probe++) {
+
+            if (!std::filesystem::exists(
+                headerPath + "Data/Data_" + std::to_string(file_no) + "/indexed/test/" +
+                to_string(nearestClusters[l][probe]) + ".bin"))
+            continue;
+            Vamana *loadedIndex = new Vamana();
+
+            loadedIndex->readIndexFromFileBoost(
+                    headerPath + "Data/Data_" + std::to_string(file_no) + "/indexed/test/" +
+                    to_string(nearestClusters[l][probe]) + ".bin");
             vector<vector<float>> pdata = loadedIndex->getPoints();
+
             loadedIndex->Search(queries[l], topK, res, vis);
 
             // Searching for the query
-//            vector<pair<float,uint32_t>> tempRes = loadedIndex->Search(queries[l], topK);
-//            for (int j = 0; j < topK; ++j) {
-//                if(vis[tempRes[j].second]) continue;
-//                vis[tempRes[j].second] = true;
-//                res.push_back({tempRes[j].first, tempRes[j].second});
-//            }
+            //            vector<pair<float,uint32_t>> tempRes = loadedIndex->Search(queries[l], topK);
+            //            for (int j = 0; j < topK; ++j) {
+            //                if(vis[tempRes[j].second]) continue;
+            //                vis[tempRes[j].second] = true;
+            //                res.push_back({tempRes[j].first, tempRes[j].second});
+            //            }
         }
+
         sort(res.begin(), res.end());
 
         /* ---------------- Showing the Ground-truth and Calculating Recall ---------------- */
@@ -328,49 +344,51 @@ int main(int argc, char** argv) {
         // calculate the ground truth of each query from the pdata and output the top 10 points where it outputs the distance then ID in a file each in a line
         int remK(topK);
 
-//        std::cout << "show groundtruth:" << std::endl;
-//        for (auto j : groundTruth) {
-//            if (remK == 0) break;
-//            remK--;
-//            std::cout << "(" << j.second << ", " << j.first << ") ";
-//        }
-//        std::cout << std::endl;
+//    std::cout << "show groundtruth:" << std::endl;
+//    for (auto j : groundTruth) {
+//        if (remK == 0) break;
+//        remK--;
+//        std::cout << "(" << j.second << ", " << j.first << ") ";
+//    }
+//    std::cout << std::endl;
 
 
-        std::cout << "show resultset:" << std::endl;
-        remK = topK;
-        for (auto j : res) {
-            if (remK == 0) break;
-            remK--;
-            std::cout << "(" << j.second << ", " << j.first << ") ";
-        }
-        std::cout << std::endl;
+        // std::cout << "show resultset:" << std::endl;
+        // remK = topK;
+        // for (auto j: res) {
+        //     if (remK == 0) break;
+        //     remK--;
+        //     std::cout << "(" << j.second << ", " << j.first << ") ";
+        // }
+        // std::cout << std::endl;
 
 
         // calculate the recall of the result set
-//        int recall = 0;
-//        remK = topK;
-//        for (auto i : groundTruth) {
-//            if (remK == 0) break;
-//            remK--;
-//            int remKRes(topK);
-//            for (auto j : res) {
-//                if (remKRes == 0) break;
-//                remKRes--;
-//                if (i.second == j.second) {
-//                    recall++;
-//                    break;
-//                }
+//    int recall = 0;
+//    remK = topK;
+//    for (auto i : groundTruth) {
+//        if (remK == 0) break;
+//        remK--;
+//        int remKRes(topK);
+//        for (auto j : res) {
+//            if (remKRes == 0) break;
+//            remKRes--;
+//            if (i.second == j.second) {
+//                recall++;
+//                break;
 //            }
 //        }
-//        cout << "Recall: " << (double)recall / topK << endl;
+//    }
+//    cout << "Recall: " << (double)recall / topK << endl;
         auto end = std::chrono::high_resolution_clock::now();
-        std::cout << "Retrieval done in " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " millseconds." << std::endl;
+        // std::cout << "Retrieval done in "
+        //           << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " millseconds."
+        //           << std::endl;
 
         // write the result set in a file
         remK = topK;
-        ofstream outfile(headerPath + "Data/Data_"+ std::to_string(file_no) +"/res.txt");
-        for (auto j : res) {
+        ofstream outfile(headerPath + "Data/Data_" + std::to_string(file_no) + "/res.txt");
+        for (auto j: res) {
             if (remK == 0) break;
             remK--;
             outfile << j.second << " " << -j.first << endl;
@@ -378,15 +396,16 @@ int main(int argc, char** argv) {
         outfile.close();
 
         // write the ground truth in a file
-//        ofstream outfile2(headerPath + "Data/Data_"+ std::to_string(file_no) +"/gt.txt");
-//        remK = topK;
-//        for (auto j : groundTruth) {
-//            if (remK == 0) break;
-//            remK--;
-//            outfile2 << j.second << " " << -j.first << endl;
-//        }
-//        outfile2.close();
+//    ofstream outfile2(headerPath + "Data/Data_"+ std::to_string(file_no) +"/gt.txt");
+//    remK = topK;
+//    for (auto j : groundTruth) {
+//        if (remK == 0) break;
+//        remK--;
+//        outfile2 << j.second << " " << -j.first << endl;
+//    }
+//    outfile2.close();
     }
+
 
     return 0;
 }

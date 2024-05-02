@@ -6,11 +6,12 @@ import sys
 import os
 import faiss
 import numpy as np
+from multiprocessing import Pool, cpu_count
 
-from multiprocessing import Process
 
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 path = "D:/Boody/GP/wikidpr/data/psgs_w100/nq/"
+headerPath = "Z:/"
 
 # TODO: 1) Remove GT From CPP  ==> DONE
 #       2) Parallelize
@@ -24,18 +25,18 @@ class Retrieve:
         # model = DPRQuestionEncoder.from_pretrained("facebook/dpr-question_encoder-single-nq-base")
 
         # #save tokenizer and model to file
-        # tokenizer.save_pretrained('./Data/Model')
-        # model.save_pretrained('./Data/Model')
+        # tokenizer.save_pretrained(headerPath + 'Data/Model')
+        # model.save_pretrained(headerPath + 'Data/Model')
 
         # read tokenizer and model from file
-        tokenizer = DPRQuestionEncoderTokenizer.from_pretrained('./Data/Model')
-        model = DPRQuestionEncoder.from_pretrained('./Data/Model')
+        tokenizer = DPRQuestionEncoderTokenizer.from_pretrained(headerPath + 'Data/Model')
+        model = DPRQuestionEncoder.from_pretrained(headerPath + 'Data/Model')
 
         # encode the query
         input_ids = tokenizer(query, return_tensors="pt")["input_ids"]
         embeddings = model(input_ids).pooler_output
         torch.set_printoptions(precision=10)
-        with open('./Data/query.txt', 'w') as f:
+        with open(headerPath + 'Data/query.txt', 'w') as f:
             f.write(str(embeddings.detach().numpy()).replace('[','').replace(']','').replace(',','').replace('\n',''))
             f.close()
 
@@ -44,9 +45,9 @@ class Retrieve:
 
     def getNearestClusters(self, file_no):
         # read the faiss index
-        index = faiss.read_index(f"./Data/Data_{file_no}/KMeansFAISS/index.bin")
+        index = faiss.read_index(headerPath + f"Data/Data_{file_no}/KMeansFAISS/index.bin")
 
-        with open("./Data/query.txt", "r") as f:
+        with open(headerPath + "Data/query.txt", "r") as f:
             lines = [np.fromstring(line, sep=" ") for line in f]
             queries = np.array(lines)
 
@@ -58,7 +59,7 @@ class Retrieve:
         I_flat = np.array(I_flat)
 
         # write the labels to a file where I_flat is the centroid index for each embedding
-        with open(f"./Data/Data_{file_no}/labels/query_faiss_labels.txt", "w") as f:
+        with open(headerPath + f"Data/Data_{file_no}/labels/query_faiss_labels.txt", "w") as f:
             f.write(str(I_flat).replace("[", "").replace("]", "").replace(",", "").replace("  ", " ").strip())
 
         # close the file and index
@@ -67,16 +68,39 @@ class Retrieve:
         
         print("********* Getting nearest clusters done *********")
 
+    # def cppRetrieveWorker(self, file_no):
+    #     # self.getNearestClusters(file_no)
+    #     headerFile = "D:/Boody/GP/Indexer/RAGn-Roll-Indexer/";
+    #     # Arguments are topK (int), headerFile (string)
+    #     topK = 10
+    #     command = f"{headerFile}cmake-build-debug/RAGn_Roll_Indexer.exe {topK} {headerFile} {file_no} -lboost_serialization -lboost_system"
+    #     print(command)
+    #     os.system(command)
+    #     print(f"####### FILE {file_no} DONE #######")
+
+
+    # def cppRetrieveParallel(self):
+    #     startTime = time.time()
+
+    #     with Pool(cpu_count()) as p:
+    #         p.map(self.cppRetrieveWorker, range(5))      
+
+    #     print("####### DONE GETTING THE NEAREST CLUSTERS #######")
+    #     endTime = time.time()
+    #     print("Time taken to retrieve documents from c++: ", endTime - startTime)
+
 
     def cppRetrieve(self):
         startTime = time.time()
+
+        # self.getNearestClusters(file_no)
+        headerFile = "D:/Boody/GP/Indexer/RAGn-Roll-Indexer/";
+        # headerFile = "Z:/";
+        # Arguments are topK (int), headerFile (string)
+        topK = 10
         for file_no in range(40):
-            # self.getNearestClusters(file_no)
-            headerFile = "D:/Boody/GP/Indexer/RAGn-Roll-Indexer/";
-            # Arguments are topK (int), headerFile (string)
-            topK = 10
-            command = f"{headerFile}cmake-build-debug/RAGn_Roll_Indexer.exe {topK} {headerFile} {file_no} -lboost_serialization -lboost_system"
-            print(command)
+            command = f"{headerFile}cmake-build-debug/RAGn_Roll_Indexer.exe {topK} {headerPath} {file_no} -lboost_serialization -lboost_system"
+            # print(command)
             os.system(command)
             print(f"####### FILE {file_no} DONE #######")
 
@@ -89,25 +113,24 @@ class Retrieve:
         # load all res files in a res listm each line contains id, distance
         self.res = []
         for file_no in range(40):
-            with open(f"./Data/Data_{file_no}/res.txt", "r") as f:
+            with open(headerPath + f"Data/Data_{file_no}/res.txt", "r") as f:
                 lines = f.readlines()
                 for line in lines:
                     line = line.split(" ")
                     self.res.append((line[0], line[1]))
         print("####### DONE READING RESULTS #######")
+        self.res.sort(key=lambda x: x[1], reverse=True)
+        self.res = self.res[:k]
 
         # self.gt = []
         # for file_no in range(40):
-        #     with open(f"./Data/Data_{file_no}/gt.txt", "r") as f:
+        #     with open(headerPath + f"Data/Data_{file_no}/gt.txt", "r") as f:
         #         lines = f.readlines()
         #         for line in lines:
         #             line = line.split(" ")
         #             self.gt.append((line[0], line[1]))
         # print("####### DONE READING GROUNDTRUTH #######")
-        # sort descending the res list by distance which is the second value
-        self.res.sort(key=lambda x: x[1], reverse=True)
         # self.gt.sort(key=lambda x: x[1], reverse=True)
-        self.res = self.res[:k]
         # self.gt = self.gt[:k]
 
 
@@ -142,7 +165,7 @@ class Retrieve:
         eq = duckdb.sql(f"SELECT text FROM read_parquet({fileNames}) WHERE id in {ids}")
         eq = eq.fetchall()
         
-        # with open("./Data/retrievedDocs.txt", "w") as f:
+        # with open(headerPath + "Data/retrievedDocs.txt", "w") as f:
         #     for i in eq:
         #         f.write(str(i[0].encode('utf-8')) + "\n")
         #         # f.write(str(i) + "\n")
@@ -166,7 +189,15 @@ class Retrieve:
         self.cppRetrieve()
 
         self.loadResultset()
-        # indexerRetrieve.getRecall()
+        # self.getRecall()
         self.getDocs()
 
         return self.retrievedDocs
+
+# calculate the time
+startTime = time.time()
+temp = Retrieve()
+temp.run("how much are the harry potter movies worth?")
+endTime = time.time()
+print(temp.retrievedDocs)
+print(" **************************************** TOTAL TIMEE: ", endTime - startTime)
