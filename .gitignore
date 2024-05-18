@@ -11,3 +11,6 @@ Data/
 .vscode/
 *.parquet
 __pycache__
+QAModel/
+*.json
+*.pickle
