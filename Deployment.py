@@ -1,29 +1,42 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List
-import numpy as np
 from duckdbRetriever import Retrieve
+import duckdbRetriever
 from pydantic import BaseModel
 from pydantic import Field
-import asyncio
 from QAModel import QA, CustomBertForQuestionAnswering
 import torch
-from transformers import BertConfig, AutoTokenizer
+from transformers import  DPRQuestionEncoder, DPRQuestionEncoderTokenizer
+from transformers import AutoTokenizer, pipeline, BertConfig
+import clip
+from PIL import Image, PngImagePlugin
+import os
+from fastapi import FastAPI
+import uvicorn
+
+import sys
+sys.path.insert(1, './QACode')
 
 
-app = FastAPI()
+from RagNRollQA import RagNRollQA
 
-origins = ["*"]
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
-# =================================== QA MODEL VAR ===================================
+Image.MAX_IMAGE_PIXELS = None
+PngImagePlugin.MAX_TEXT_CHUNK = 1024*1024*10
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+
+# =================================== INDEXER MODELS ===================================
+tokenizerText = DPRQuestionEncoderTokenizer.from_pretrained('Z:/Data/Model/')
+modelText = DPRQuestionEncoder.from_pretrained('Z:/Data/Model/')
+modelImg = clip.load('ViT-L/14', device=device)
+# modelImg,_ = open_clip.create_model_and_transforms('ViT-L-14', pretrained='openai')
+
+
+# =================================== QA MODELS ===================================
 # Instantiate the model with the provided configuration
 config = BertConfig.from_dict({
     "_name_or_path": "ourModel",
@@ -50,12 +63,28 @@ config = BertConfig.from_dict({
     "vocab_size": 30522
 })
 model = CustomBertForQuestionAnswering(config)
-model.load_state_dict(torch.load('./QAModel/model.pth'), strict=False)
+model.load_state_dict(torch.load('./QAModel/CustomModel.pth'), strict=False)
 model_checkpoint = "atharvamundada99/bert-large-question-answering-finetuned-legal"
 tokenizer = AutoTokenizer.from_pretrained(model_checkpoint)
 
+question_answerer = pipeline("question-answering", model=model, tokenizer=tokenizer)
+
+
+RAGnRoll = RagNRollQA()
 
 # =================================== REQUESTS ===================================
+app = FastAPI()
+
+origins = ["*"]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 @app.get("/")                    
 def read_items(): 
@@ -64,20 +93,53 @@ def read_items():
 
 class Query(BaseModel):
     query: str = Field(..., title="Query", example="What is the capital of France?")
+class TextIds(BaseModel):
+    query: str = Field(..., title="Query", example="What is the capital of France?")
+    ids : List[int] = Field(..., example="[1, 2]")
 
 class response(BaseModel):
-    docs : List[str] = Field(..., example="['asdasd','gfdgdfg']")
+    docs : List[str] = Field(..., example=['asdasd','gfdgdfg'])
+class responseIds(BaseModel):
+    ids : List[int] = Field(..., example="[1, 2]")
+class responseURLs(BaseModel):
+    urls : List[dict] = Field(..., example=[{'link':'asdasdasdasd'}])
 
 
-@app.post("/retrieve", response_model= response)
-async def retrieve(q: Query):
+@app.post("/retrieveIdsText", response_model= responseIds)
+def retrieveIdsText(q: Query):
     try:
         # get the query from the body of the request
         query = q.query
         temp = Retrieve()
-        result = temp.run(query)
+        result = temp.returnIds(query, isImage= False, modelText= modelText, tokenizerText= tokenizerText)
+        
+        return {"ids": result}
+    except Exception as e:
+        return {"error": str(e)}
+    
+@app.post("/retrieveActualText")
+def retrieveActualText(q: TextIds):
+    try:
+        # get the query from the body of the request
+        ids = q.ids
+        query = q.query
+        temp = Retrieve()
+        result = temp.returnActualData(ids, query)
         
         return {"docs": result}
+    except Exception as e:
+        return {"error": str(e)}
+    
+@app.post("/retrieveImgs", response_model= responseURLs)
+def retrieveImgs(q: Query):
+    try:
+        # get the query from the body of the request
+        query = q.query
+        temp = Retrieve()
+        result = temp.run(query, isImage=True, modelImg= modelImg, device= device)
+        # convert this array to array of dicts where each one has key link and value its url
+        result = [{"link": i} for i in result]
+        return {"urls": result}
     except Exception as e:
         return {"error": str(e)}
     
@@ -85,17 +147,29 @@ async def retrieve(q: Query):
 class QAReq(BaseModel):
     query: str = Field(..., title="Query", example="What is the capital of France?")
     doc: str = Field(..., title="Document", example= "Paris is the capital of France 3shan 5ater Hashish")
+    ourModel: bool = Field(..., title="OurModel", example= True)
 
 class responseQA(BaseModel):
     QA : str = Field(..., example="'lololololol'")
 
 @app.post("/QAResponse", response_model= responseQA)
-async def retrieve(q: QAReq):
+def retrieve(q: QAReq):
     try:
         query = q.query
         doc = q.doc
-        result = QA(model, tokenizer, query, doc)
-        print(result)
+        check = q.ourModel
+
+        if check:
+            result = RAGnRoll.answer_question(query, doc)
+        else:
+            # result = QA(model, tokenizer, query, doc)
+            result = question_answerer(question=query, context=doc, truncation=True, padding=True, return_tensors='pt')
+            result = result["answer"]
+        
+
         return {"QA": result}
     except Exception as e:
         return {"error": str(e)}
+    
+if __name__ == "__main__":
+    uvicorn.run("Deployment:app", host="127.0.0.1", port=3001, log_level="info")

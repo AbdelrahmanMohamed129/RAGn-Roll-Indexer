@@ -1,17 +1,17 @@
 import torch
 import clip
-from PIL import Image, PngImagePlugin, UnidentifiedImageError
-import tensorflow as tf
-from io import BytesIO
+from PIL import Image, PngImagePlugin
 import duckdb
 import time
-from transformers import DPRQuestionEncoder, DPRQuestionEncoderTokenizer, CLIPProcessor, CLIPModel
+from transformers import DPRQuestionEncoder, DPRQuestionEncoderTokenizer
 import os
 import faiss
 import numpy as np
-from multiprocessing import Pool, cpu_count
-import pandas as pd
+import cohere
 
+
+os.environ['COHERE_API_KEY'] = 'gtNwvMCXjn0HnBpZ42YEbMMoXz6BqDvXY2aoQRoM'
+co = cohere.Client(os.environ['COHERE_API_KEY'])
 
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
@@ -33,7 +33,7 @@ imagesPath = "Z:/DataImgs/"
 
 class Retrieve:
 
-    def readQueryText(self, query):
+    def readQueryText(self, query, model, tokenizer):
         # tokenizer = DPRQuestionEncoderTokenizer.from_pretrained("facebook/dpr-question_encoder-single-nq-base")
         # model = DPRQuestionEncoder.from_pretrained("facebook/dpr-question_encoder-single-nq-base")
 
@@ -42,8 +42,8 @@ class Retrieve:
         # model.save_pretrained(self.headerPath + 'Model')
 
         # read tokenizer and model from file
-        tokenizer = DPRQuestionEncoderTokenizer.from_pretrained(self.headerPath + 'Model')
-        model = DPRQuestionEncoder.from_pretrained(self.headerPath + 'Model')
+        # tokenizer = DPRQuestionEncoderTokenizer.from_pretrained(self.headerPath + 'Model')
+        # model = DPRQuestionEncoder.from_pretrained(self.headerPath + 'Model')
 
         # encode the query
         input_ids = tokenizer(query, return_tensors="pt")["input_ids"]
@@ -56,8 +56,9 @@ class Retrieve:
         print("####### DONE EMDEDING THE QUERY #######")
 
 
-    def readQueryImgs(self, query):
-        model, preprocess = clip.load('ViT-L/14', device=device)
+    def readQueryImgs(self, query, model, device):
+        # model = clip.load('ViT-L/14', device=device)
+        model, _ =  model
 
         text = clip.tokenize(query).to(device)
 
@@ -149,16 +150,16 @@ class Retrieve:
         self.res.sort(key=lambda x: x[1], reverse=True)
         self.res = self.res[:self.topK]
 
-        self.gt = []
-        for file_no in range(self.fileCount):
-            with open(self.headerPath + f"Data_{file_no}/gt.txt", "r") as f:
-                lines = f.readlines()
-                for line in lines:
-                    line = line.split(" ")
-                    self.gt.append((line[0], line[1]))
-        print("####### DONE READING GROUNDTRUTH #######")
-        self.gt.sort(key=lambda x: x[1], reverse=True)
-        self.gt = self.gt[:self.topK]
+        # self.gt = []
+        # for file_no in range(self.fileCount):
+        #     with open(self.headerPath + f"Data_{file_no}/gt.txt", "r") as f:
+        #         lines = f.readlines()
+        #         for line in lines:
+        #             line = line.split(" ")
+        #             self.gt.append((line[0], line[1]))
+        # print("####### DONE READING GROUNDTRUTH #######")
+        # self.gt.sort(key=lambda x: x[1], reverse=True)
+        # self.gt = self.gt[:self.topK]
 
 
     def getRecall(self):
@@ -171,16 +172,17 @@ class Retrieve:
         print("Recall: ", self.recall)
 
 
-    def getDocsText(self):
+    def getDocsText(self, query):
         # select document with id 4 in the table using duckdb
         startTime = time.time()
 
-        ids = [int(i[0]) for i in self.res]
+        # ids = [int(i[0]) for i in self.res]
+        ids = self.res
+        
         fileNames = set()
         firstSplit = 133856 * 65
 
         for id in ids:
-            print(id)
             if id < firstSplit:
                 idx = id // 133856
             else:
@@ -189,8 +191,8 @@ class Retrieve:
             fileNames.add(f"{textParquetPath}train-{str(idx).zfill(5)}-of-00157.parquet")
 
         fileNames = str(list(fileNames))
-        ids = str(tuple(ids))
-        eq = duckdb.sql(f"SELECT text FROM read_parquet({fileNames}) WHERE id in {ids}")
+        idsDuck = str(tuple(ids))
+        eq = duckdb.sql(f"SELECT text FROM read_parquet({fileNames}) WHERE id in {idsDuck}")
         eq = eq.fetchall()
         
         # with open(self.headerPath + "retrievedDocs.txt", "w") as f:
@@ -200,8 +202,38 @@ class Retrieve:
         #     f.close()
         
         # convert the retrieved documents to a list of strings
-        self.retrievedDocs = [i[0] for i in eq]
+        retrievedDocs = [i[0] for i in eq]
+        # ReRanker
+        # make dictionary of ids and data as its value
+        docs = {}
+        for i in range(len(ids)):
+            docs[retrievedDocs[i]] = ids[i]
 
+        
+        rerank_docs = co.rerank(
+            query=query, documents=list(docs.keys()), top_n=50, model="rerank-english-v2.0"
+        )
+
+        res = [(docs[doc.document["text"]], doc.relevance_score) for doc in rerank_docs]
+        
+        # sort the res according to the first item in the tuple
+        print(res)
+        res.sort(key=lambda x: x[0]) 
+        # concatenate each consecutive ids and give them a score of the maximum relevance_score among them
+        docs = {v: k for k, v in docs.items()}
+        new_res = []
+        for i in range(len(res)):
+            if i == 0 or res[i][0] != res[i-1][0] + 1:
+                new_res.append((res[i][0], res[i][1], docs[res[i][0]], 0))
+            elif res[i][0] == res[i-1][0] + 1:
+                new_res[-1] = (new_res[-1][0], max(new_res[-1][1], res[i][1]), new_res[-1][2] + docs[res[i][0]], 1)
+
+        # sort the new_res according to the relevance_score
+        new_res.sort(key=lambda x: x[1], reverse=True)
+        # get the top 10 documents
+        
+        self.retrievedDocs = [doc[2] for doc in new_res[:5]]
+        
         endTime = time.time()
         print("Time taken to retrieve documents using duckdb: ", endTime - startTime)
 
@@ -241,7 +273,7 @@ class Retrieve:
         print("Time taken to retrieve documents using duckdb: ", endTime - startTime)
 
 
-    def run(self, query, isImage):
+    def run(self, query, isImage, modelText = None, tokenizerText = None, modelImg = None, device = None):
 
         # indexerRetrieve = Retrieve()
         # query = sys.argv[1]
@@ -251,9 +283,9 @@ class Retrieve:
         self.topK = 10
     
         if self.isImage:
-            self.readQueryImgs(query)
+            self.readQueryImgs(query, modelImg, device)
         else:
-            self.readQueryText(query)
+            self.readQueryText(query, modelText, tokenizerText)
 
         self.fileCount = len([name for name in os.listdir(self.headerPath) if name.startswith("Data")]) 
 
@@ -262,27 +294,67 @@ class Retrieve:
 
         self.cppRetrieve()
         self.loadResultset()
-        self.getRecall()
+        # self.getRecall()
 
         if self.isImage:
             self.getDocsImgs()
         else:
             self.getDocsText()
 
-        if isImage:
+        if self.isImage:
             return self.retrievedImgs
         else:
             return self.retrievedDocs
+        
+    def returnIds(self, query, isImage, modelText = None, tokenizerText = None, modelImg = None, device = None):
+
+        # indexerRetrieve = Retrieve()
+        # query = sys.argv[1]
+
+        self.headerPath = imagesPath if isImage else textPath
+        self.isImage = isImage
+        self.topK = 50
+    
+        if self.isImage:
+            self.readQueryImgs(query, modelImg, device)
+        else:
+            self.readQueryText(query, modelText, tokenizerText)
+
+        self.fileCount = len([name for name in os.listdir(self.headerPath) if name.startswith("Data")]) 
+
+        for file_no in range(self.fileCount):
+            self.getNearestClusters(file_no)
+
+        self.cppRetrieve()
+        self.loadResultset()
+        
+        return [int(i[0]) for i in self.res]
+    
+    def returnActualData(self, ids, query):
+        
+        self.res = ids
+        self.getDocsText(query)
+        
+        return self.retrievedDocs
 
 
 if __name__ == '__main__':
+    # calculate the time 
+    startTime = time.time()
+
+    tokenizerText = DPRQuestionEncoderTokenizer.from_pretrained('Z:/Data/Model/')
+    modelText = DPRQuestionEncoder.from_pretrained('Z:/Data/Model/')
     
-    # # calculate the time
-    # startTime = time.time()
     temp = Retrieve()
-    temp.run("What does the titanic look like?", isImage = True)
-    # print(temp.retrievedDocs)
-    print(temp.retrievedImgs)
-    # endTime = time.time()
-    # print(temp.retrievedDocs)
-    # print(" **************************************** TOTAL TIMEE: ", endTime - startTime)
+    query = "When was the first time auto racing started?"
+    ids = temp.returnIds(query, isImage = False, modelText= modelText, tokenizerText= tokenizerText)
+    print(ids)
+    data = temp.returnActualData(ids, query)
+    print(len(data))
+    # # dump docs in a json file
+    # with open("./reranker.json", "w") as f:
+        #     json.dump(docs, f, indent=4)
+    
+    endTime = time.time()
+    print("ALL Time taken ", endTime - startTime)
+    
