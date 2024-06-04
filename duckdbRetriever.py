@@ -130,7 +130,7 @@ class Retrieve:
             command = f"{headerFile}cmake-build-debug/RAGn_Roll_Indexer.exe {self.topK} {self.headerPath} {file_no} -lboost_serialization -lboost_system"
             # print(command)
             os.system(command)
-            print(f"####### FILE {file_no} DONE #######")
+            # print(f"####### FILE {file_no} DONE #######")
 
         print("####### DONE GETTING THE NEAREST CLUSTERS #######")
         endTime = time.time()
@@ -340,21 +340,21 @@ class Retrieve:
 
 if __name__ == '__main__':
     # calculate the time 
-    startTime = time.time()
 
     tokenizerText = DPRQuestionEncoderTokenizer.from_pretrained('Z:/Data/Model/')
     modelText = DPRQuestionEncoder.from_pretrained('Z:/Data/Model/')
     
     temp = Retrieve()
-    query = "When was the first time auto racing started?"
+    query = "When was world war II?"
+    startTime = time.time()
     ids = temp.returnIds(query, isImage = False, modelText= modelText, tokenizerText= tokenizerText)
     print(ids)
-    data = temp.returnActualData(ids, query)
-    print(len(data))
+    endTime = time.time()
+    print("ALL Time taken ", endTime - startTime)
+    # data = temp.returnActualData(ids, query)
+    # print(len(data))
     # # dump docs in a json file
     # with open("./reranker.json", "w") as f:
         #     json.dump(docs, f, indent=4)
     
-    endTime = time.time()
-    print("ALL Time taken ", endTime - startTime)
     

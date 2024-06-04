@@ -356,14 +356,14 @@ int main(int argc, char** argv) {
 //        std::cout << std::endl;
 
 
-         std::cout << "show resultset:" << std::endl;
-         remK = topK;
-         for (auto j: res) {
-             if (remK == 0) break;
-             remK--;
-             std::cout << "(" << j.second << ", " << j.first << ") ";
-         }
-         std::cout << std::endl;
+//         std::cout << "show resultset:" << std::endl;
+//         remK = topK;
+//         for (auto j: res) {
+//             if (remK == 0) break;
+//             remK--;
+//             std::cout << "(" << j.second << ", " << j.first << ") ";
+//         }
+//         std::cout << std::endl;
 
 
         // calculate the recall of the result set
@@ -385,9 +385,9 @@ int main(int argc, char** argv) {
 //        cout << "Recall: " << (double)recall / topK << endl;
         auto end = std::chrono::high_resolution_clock::now();
 
-         std::cout << "Retrieval done in "
-                   << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " millseconds."
-                   << std::endl;
+//         std::cout << "Retrieval done in "
+//                   << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " millseconds."
+//                   << std::endl;
 
         // write the result set in a file
         remK = topK;
