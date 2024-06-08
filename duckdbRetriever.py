@@ -1,3 +1,4 @@
+from multiprocessing import Pool
 import torch
 import clip
 from PIL import Image, PngImagePlugin
@@ -100,8 +101,7 @@ class Retrieve:
     #     # self.getNearestClusters(file_no)
     #     headerFile = "D:/Boody/GP/Indexer/RAGn-Roll-Indexer/";
     #     # Arguments are topK (int), headerFile (string)
-    #     topK = 10
-    #     command = f"{headerFile}cmake-build-debug/RAGn_Roll_Indexer.exe {topK} {self.headerPath} {file_no} -lboost_serialization -lboost_system"
+    #     command = f"{headerFile}cmake-build-debug/RAGn_Roll_Indexer.exe {self.topK} {self.headerPath} {file_no} -lboost_serialization -lboost_system"
     #     print(command)
     #     os.system(command)
     #     print(f"####### FILE {file_no} DONE #######")
@@ -111,7 +111,7 @@ class Retrieve:
     #     startTime = time.time()
 
     #     with Pool(10) as p:
-    #         p.map(self.cppRetrieveWorker, range(40))      
+    #         p.map(self.cppRetrieveWorker, range(self.fileCount))      
 
     #     print("####### DONE GETTING THE NEAREST CLUSTERS #######")
     #     endTime = time.time()
@@ -150,16 +150,16 @@ class Retrieve:
         self.res.sort(key=lambda x: x[1], reverse=True)
         self.res = self.res[:self.topK]
 
-        # self.gt = []
-        # for file_no in range(self.fileCount):
-        #     with open(self.headerPath + f"Data_{file_no}/gt.txt", "r") as f:
-        #         lines = f.readlines()
-        #         for line in lines:
-        #             line = line.split(" ")
-        #             self.gt.append((line[0], line[1]))
-        # print("####### DONE READING GROUNDTRUTH #######")
-        # self.gt.sort(key=lambda x: x[1], reverse=True)
-        # self.gt = self.gt[:self.topK]
+        self.gt = []
+        for file_no in range(self.fileCount):
+            with open(self.headerPath + f"Data_{file_no}/gt.txt", "r") as f:
+                lines = f.readlines()
+                for line in lines:
+                    line = line.split(" ")
+                    self.gt.append((line[0], line[1]))
+        print("####### DONE READING GROUNDTRUTH #######")
+        self.gt.sort(key=lambda x: x[1], reverse=True)
+        self.gt = self.gt[:self.topK]
 
 
     def getRecall(self):
@@ -183,6 +183,7 @@ class Retrieve:
         firstSplit = 133856 * 65
 
         for id in ids:
+            print(id, firstSplit)
             if id < firstSplit:
                 idx = id // 133856
             else:
@@ -209,7 +210,8 @@ class Retrieve:
         for i in range(len(ids)):
             docs[retrievedDocs[i]] = ids[i]
 
-        
+        print(docs)
+
         rerank_docs = co.rerank(
             query=query, documents=list(docs.keys()), top_n=50, model="rerank-english-v2.0"
         )
@@ -327,11 +329,10 @@ class Retrieve:
 
         self.cppRetrieve()
         self.loadResultset()
-        
+        # self.getRecall()
         return [int(i[0]) for i in self.res]
     
     def returnActualData(self, ids, query):
-        
         self.res = ids
         self.getDocsText(query)
         
@@ -345,12 +346,11 @@ if __name__ == '__main__':
     modelText = DPRQuestionEncoder.from_pretrained('Z:/Data/Model/')
     
     temp = Retrieve()
-    query = "When was world war II?"
-    startTime = time.time()
+    query = "When did Neil Armstrong land on the moon"
+    
     ids = temp.returnIds(query, isImage = False, modelText= modelText, tokenizerText= tokenizerText)
-    print(ids)
-    endTime = time.time()
-    print("ALL Time taken ", endTime - startTime)
+    # temp.returnActualData(ids, query)
+
     # data = temp.returnActualData(ids, query)
     # print(len(data))
     # # dump docs in a json file

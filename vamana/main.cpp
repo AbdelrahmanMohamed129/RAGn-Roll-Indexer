@@ -314,9 +314,10 @@ int main(int argc, char** argv) {
         vector<pair<float, uint32_t>> res;
         map<uint32_t, bool> vis;
 
+        start = std::chrono::high_resolution_clock::now();
 //            for (int probe = 0; probe < nearestClusters[l].size(); probe++) {
 #pragma omp parallel for
-        for (int probe = 0; probe < 2; probe++) {
+        for (int probe = 0; probe < 1; probe++) {
 
             if (!std::filesystem::exists(
                 headerPath + "Data_" + std::to_string(file_no) + "/indexed/test/" +
@@ -341,7 +342,11 @@ int main(int argc, char** argv) {
         }
 
         sort(res.begin(), res.end());
+        auto end = std::chrono::high_resolution_clock::now();
 
+        std::cout << "Retrieval done in "
+                  << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " millseconds."
+                  << std::endl;
         /* ---------------- Showing the Ground-truth and Calculating Recall ---------------- */
 
         // calculate the ground truth of each query from the pdata and output the top 10 points where it outputs the distance then ID in a file each in a line
@@ -383,11 +388,7 @@ int main(int argc, char** argv) {
 //            }
 //        }
 //        cout << "Recall: " << (double)recall / topK << endl;
-        auto end = std::chrono::high_resolution_clock::now();
 
-//         std::cout << "Retrieval done in "
-//                   << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " millseconds."
-//                   << std::endl;
 
         // write the result set in a file
         remK = topK;

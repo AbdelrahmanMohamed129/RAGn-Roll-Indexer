@@ -171,12 +171,10 @@ public:
 
     void readIndexFromFileBoost(const std::string& path) {
         std::ifstream ifs(path, std::fstream::binary | std::fstream::in);
-//        ia >> *this;
         if (ifs.good()) {
             boost::archive::binary_iarchive ia(ifs);
             ia&* (this);
         } else {
-            // throw an error or something
             cout << "ERROR: File not found" << endl;
         }
     }
